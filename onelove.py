@@ -8,12 +8,17 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+# DEBUG: Inspecter le contenu de st.secrets
+st.write("DEBUG - st.secrets keys:", list(st.secrets.keys()))
+
 service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
+st.write("DEBUG - Lecture JSON effectuée avec succès.")
 creds = ServiceAccountCredentials.from_json_keyfile_dict(
     service_account_info,
     SCOPES
 )
 client = gspread.authorize(creds)
+
 
 # Feuille Google Sheets
 SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
