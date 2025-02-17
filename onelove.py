@@ -48,12 +48,19 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
     print("🔍 Prompt envoyé à OpenAI :")
     print(prompt)  # Affiche le prompt pour voir s'il est bien généré
 
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}]
-    )
+response = openai.ChatCompletion.create(
+    model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": prompt}],
+    temperature=0.7
+)
 
-    return response["choices"][0]["message"]["content"]  # ✅ Bien indenté maintenant !
+    return response["choices"][0]["message"]["content"]
+
+
+    except Exception as e:
+        return f"❌ Erreur avec OpenAI : {e}"
+
+    # ✅ Bien indenté maintenant !
 
 
 # -------------------------------------------------------------------
