@@ -50,6 +50,9 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
         messages=[{"role": "user", "content": prompt}]
     )
     
+print("🔍 Prompt envoyé à OpenAI :")
+print(prompt)  # Affiche le prompt pour voir s'il est bien généré
+    
     return response["choices"][0]["message"]["content"]
 
 
@@ -252,6 +255,14 @@ def page_result():
 
     total_score = st.session_state.answers.get("total_score", 0)
     st.write(f"**Votre score : {total_score}**")
+
+    st.write("⏳ Génération du feedback en cours...")
+feedback = generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
+                             dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4)
+
+st.write("✅ Réponse OpenAI reçue :")
+st.write(feedback)  # Affiche la réponse brute de l'API OpenAI
+
 
     df = get_all_data_as_df()
     if df.empty:
