@@ -57,7 +57,7 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
 
         return response["choices"][0]["message"]["content"]  # ✅ Extraction de la réponse
 
-    except openai.error.OpenAIError as e:  # ✅ Ajout du bloc except
+    except Exception as e:  # ✅ Remplace `openai.error.OpenAIError` par `Exception`
         return f"❌ Erreur avec OpenAI : {str(e)}"
 
 
