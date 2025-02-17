@@ -10,6 +10,47 @@ if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
     st.success("✅ Clé API OpenAI chargée avec succès !")
 else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
+import openai  # Importer OpenAI
+
+# Charger la clé API OpenAI
+openai.api_key = st.secrets["openai"]["api_key"]
+
+def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
+                      dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
+    """
+    Utilise ChatGPT pour générer un feedback détaillé et personnalisé 
+    sur les résultats du test de compatibilité de l'utilisateur.
+    """
+    prompt = f"""
+    Un utilisateur vient de compléter le test de compatibilité IA sur OneLove.
+    Voici son profil détaillé :
+
+    - **ID** : {user_id}
+    - **Score de compatibilité** : {total_score}/15
+    - **Orientation sexuelle** : {orientation}
+    - **Genre** : {gender}
+    - **Fumeur** : {"Oui" if is_smoker else "Non"}
+    - **Souhaite avoir des enfants** : {"Oui" if wants_kids else "Non"}
+    - **Critère rédhibitoire (Refuse un partenaire fumeur)** : {"Oui" if dealbreakers_smoking else "Non"}
+    - **Critère rédhibitoire (Refuse un partenaire qui ne veut pas d’enfants)** : {"Oui" if dealbreakers_kids else "Non"}
+    - **Rythme de vie** : {q1}
+    - **Valeurs en couple** : {q2}
+    - **Journée idéale** : {q3}
+    - **Niveau d'engagement recherché** : {q4}/10
+
+    🔹 **Analyse et conseils** :
+    - Dresse un portrait de cet utilisateur en fonction de ses réponses.
+    - Souligne ses points forts en relation amoureuse.
+    - Donne-lui des conseils pour trouver un partenaire compatible.
+    - Termine par une phrase inspirante sur l’amour et les rencontres.
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",  # ou "gpt-4" si dispo
+        messages=[{"role": "user", "content": prompt}]
+    )
+    
+    return response["choices"][0]["message"]["content"]
 
 
 # -------------------------------------------------------------------
