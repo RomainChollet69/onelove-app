@@ -51,9 +51,11 @@ Voici son profil détaillé :
         openai.api_key = st.secrets["openai"]["api_key"]
         
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # ou "gpt-3.5-turbo" selon vos besoins
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
+)
+
         )
         return response.choices[0].message["content"]
     except openai.OpenAIError as e:
