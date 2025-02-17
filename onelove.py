@@ -1,27 +1,30 @@
 import streamlit as st
-import gspread
+import json
 from oauth2client.service_account import ServiceAccountCredentials
-import pandas as pd
-
-# -------------------------------------------------------------------
-# 1. CONFIGURATION DE L'ACCES GOOGLE SHEETS
-# -------------------------------------------------------------------
-# Assure-toi d'avoir le fichier credentials.json (celui de ton service account)
-# dans le même dossier que ce script onelove.py
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-CREDS = ServiceAccountCredentials.from_json_keyfile_name(
-    "credentials.json",
+# On récupère les infos JSON depuis st.secrets
+service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
+# On crée les credentials à partir de ces infos
+creds = ServiceAccountCredentials.from_json_keyfile_dict(
+    service_account_info, 
     SCOPES
 )
 
-CLIENT = gspread.authorize(CREDS)
-SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"  # L'ID de ta Google Sheet
-sheet = CLIENT.open_by_key(SHEET_KEY).sheet1  # On prend le 1er onglet
+# Puis on autorise gspread
+import gspread
+client = gspread.authorize(creds)
+
+# A présent tu peux ouvrir ta Sheet :
+SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
+sheet = client.open_by_key(SHEET_KEY).sheet1
+
+st.title("Mon appli IA Dating")
+# 
 
 # -------------------------------------------------------------------
 # 2. FONCTIONS UTILES
