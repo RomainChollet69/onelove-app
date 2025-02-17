@@ -56,7 +56,6 @@ Voici son profil détaillé :
             temperature=0.7
 )
 
-        )
         return response.choices[0].message["content"]
     except openai.OpenAIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
