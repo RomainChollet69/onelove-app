@@ -10,15 +10,15 @@ if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
     st.success("✅ Clé API OpenAI chargée avec succès !")
 else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
-import openai
+iimport openai
 
-# ✅ Instanciation correcte du client OpenAI avec la nouvelle API
-client = openai.Client(api_key=st.secrets["openai"]["api_key"])
+# ✅ Nouvelle initialisation correcte avec la version openai>=1.0.0
+openai.api_key = st.secrets["openai"]["api_key"]
 
 def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
     """
-    Utilise ChatGPT pour générer un feedback détaillé et personnalisé 
+    Utilise OpenAI pour générer un feedback détaillé et personnalisé 
     sur les résultats du test de compatibilité de l'utilisateur.
     """
     prompt = f"""
@@ -46,22 +46,13 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
     """
 
     print("🔍 Prompt envoyé à OpenAI :")
-    print(prompt)  # Affiche le prompt pour voir s'il est bien généré
+    print(prompt)  # ✅ Vérification du prompt
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4",  # Change en "gpt-3.5-turbo" si tu veux une version moins coûteuse
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Change en "gpt-3.5-turbo" si besoin
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7  # Ajoute un peu de variation dans la réponse
-        )
-        
-        return response.choices[0].message.content  # ✅ Retourne la réponse corrigée
-
-    except openai.OpenAIError as e:
-        return f"❌ Erreur avec OpenAI : {str(e)}"
-
-
-
 
 
 
