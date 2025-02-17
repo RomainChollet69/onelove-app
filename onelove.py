@@ -10,7 +10,7 @@ if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
     st.success("✅ Clé API OpenAI chargée avec succès !")
 else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
-iimport openai
+import openai
 
 # ✅ Nouvelle initialisation correcte avec la version openai>=1.0.0
 openai.api_key = st.secrets["openai"]["api_key"]
