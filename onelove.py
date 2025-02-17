@@ -47,18 +47,18 @@ Voici son profil détaillé :
     print(prompt)
     
     try:
-        # Définir la clé API dans le module OpenAI
-        openai.api_key = api_key
-
+        # Définir la clé API globalement (sans la passer comme argument)
+        openai.api_key = st.secrets["openai"]["api_key"]
+        
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # ou "gpt-3.5-turbo" si nécessaire
+            model="gpt-4",  # ou "gpt-3.5-turbo" selon vos besoins
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        # Accès au contenu du message via l'indexation du dictionnaire
         return response.choices[0].message["content"]
     except openai.OpenAIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
+
 
 
 
