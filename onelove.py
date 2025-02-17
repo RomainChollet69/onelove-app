@@ -45,15 +45,15 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
     - Termine par une phrase inspirante sur l’amour et les rencontres.
     """
 
+    print("🔍 Prompt envoyé à OpenAI :")
+    print(prompt)  # Affiche le prompt pour voir s'il est bien généré
+
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",  # ou "gpt-4" si dispo
+        model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}]
     )
-    
-print("🔍 Prompt envoyé à OpenAI :")
-print(prompt)  # Affiche le prompt pour voir s'il est bien généré
-    
-    return response["choices"][0]["message"]["content"]
+
+    return response["choices"][0]["message"]["content"]  # ✅ Bien indenté maintenant !
 
 
 # -------------------------------------------------------------------
@@ -257,11 +257,24 @@ def page_result():
     st.write(f"**Votre score : {total_score}**")
 
     st.write("⏳ Génération du feedback en cours...")
-feedback = generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
-                             dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4)
+    feedback = generate_feedback(
+        st.session_state.user_id,
+        total_score,
+        st.session_state.answers.get("orientation", "Non précisé"),
+        st.session_state.answers.get("gender", "Non précisé"),
+        st.session_state.answers.get("is_smoker", False),
+        st.session_state.answers.get("wants_kids", False),
+        st.session_state.answers.get("dealbreakers_smoking", False),
+        st.session_state.answers.get("dealbreakers_kids", False),
+        st.session_state.answers.get("q1", "Non précisé"),
+        st.session_state.answers.get("q2", "Non précisé"),
+        st.session_state.answers.get("q3", "Non précisé"),
+        st.session_state.answers.get("q4", 5),
+    )
 
-st.write("✅ Réponse OpenAI reçue :")
-st.write(feedback)  # Affiche la réponse brute de l'API OpenAI
+    st.write("✅ Réponse OpenAI reçue :")
+    st.write(feedback)  # ✅ Affiche la réponse brute de l'API OpenAI
+
 
 
     df = get_all_data_as_df()
