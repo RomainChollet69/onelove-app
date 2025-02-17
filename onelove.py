@@ -13,10 +13,8 @@ else:
 import openai
 import streamlit as st
 
-# ✅ Initialisation correcte du client OpenAI
-client = openai.OpenAI(
-    api_key=st.secrets["openai"]["api_key"]
-)
+# ✅ Chargement de la clé API OpenAI depuis Streamlit
+api_key = st.secrets["openai"]["api_key"]
 
 def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
@@ -53,7 +51,8 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
 
     try:
         # ✅ Utilisation correcte de la nouvelle API OpenAI
-        response = client.chat.completions.create(
+        response = openai.chat.completions.create(
+            api_key=api_key,  # Ajout explicite de la clé API
             model="gpt-4",  # Change en "gpt-3.5-turbo" si besoin
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7  # Ajoute un peu de variation dans la réponse
@@ -61,10 +60,8 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
 
         return response.choices[0].message.content  # ✅ Extraction de la réponse
 
-    except openai.APIError as e:
+    except openai.OpenAIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
-
-
 
 
 
