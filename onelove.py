@@ -18,7 +18,7 @@ else:
 api_key = st.secrets["openai"]["api_key"]
 
 # Fonction pour générer un feedback via OpenAI
-ddef generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
+def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
     prompt = f"""
 Un utilisateur vient de compléter le test de compatibilité IA sur OneLove.
