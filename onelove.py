@@ -3,6 +3,14 @@ import json
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
+import streamlit as st
+
+# Vérifier si OpenAI est bien dans les secrets de Streamlit
+if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
+    st.success("✅ Clé API OpenAI chargée avec succès !")
+else:
+    st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
+
 
 # -------------------------------------------------------------------
 # 1. CONFIGURATION DE L'ACCES GOOGLE SHEETS
