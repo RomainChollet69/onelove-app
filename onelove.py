@@ -56,8 +56,9 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
         
         return response["choices"][0]["message"]["content"]  # ✅ Récupération correcte
 
-    except openai.error.OpenAIError as e:
-        return f"❌ Erreur avec OpenAI : {e}"
+    except Exception as e:
+    return f"❌ Erreur avec OpenAI : {e}"
+
 
 
 
