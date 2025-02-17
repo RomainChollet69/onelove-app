@@ -11,9 +11,12 @@ if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
 else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
 import openai
+import streamlit as st
 
-# ✅ Nouvelle initialisation correcte avec la version openai>=1.0.0
-openai.api_key = st.secrets["openai"]["api_key"]
+# ✅ Initialisation correcte du client OpenAI
+client = openai.OpenAI(
+    api_key=st.secrets["openai"]["api_key"]
+)
 
 def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
@@ -49,16 +52,18 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
     print(prompt)  # ✅ Vérification du prompt
 
     try:
-        response = openai.ChatCompletion.create(
+        # ✅ Utilisation correcte de la nouvelle API OpenAI
+        response = client.chat.completions.create(
             model="gpt-4",  # Change en "gpt-3.5-turbo" si besoin
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7  # Ajoute un peu de variation dans la réponse
-        )  # ❗ Fermeture correcte de la parenthèse `)`
+        )
 
-        return response["choices"][0]["message"]["content"]  # ✅ Extraction de la réponse
+        return response.choices[0].message.content  # ✅ Extraction de la réponse
 
-    except Exception as e:  # ✅ Remplace `openai.error.OpenAIError` par `Exception`
+    except openai.APIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
+
 
 
 
