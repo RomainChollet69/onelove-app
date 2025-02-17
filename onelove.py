@@ -18,43 +18,48 @@ else:
 api_key = st.secrets["openai"]["api_key"]
 
 # Fonction pour générer un feedback via OpenAI
-def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
+ddef generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
     prompt = f"""
 Un utilisateur vient de compléter le test de compatibilité IA sur OneLove.
 Voici son profil détaillé :
 
-- ID : {user_id}
-- Score de compatibilité : {total_score}/15
-- Orientation sexuelle : {orientation}
-- Genre : {gender}
-- Fumeur : {"Oui" if is_smoker else "Non"}
-- Souhaite avoir des enfants : {"Oui" if wants_kids else "Non"}
-- Critère rédhibitoire (refuse un(e) partenaire fumeur) : {"Oui" if dealbreakers_smoking else "Non"}
-- Critère rédhibitoire (refuse un(e) partenaire ne voulant pas d'enfants) : {"Oui" if dealbreakers_kids else "Non"}
-- Rythme de vie : {q1}
-- Valeurs en couple : {q2}
-- Journée idéale : {q3}
-- Niveau d'engagement recherché : {q4}/10
+- **ID** : {user_id}
+- **Score de compatibilité** : {total_score}/15
+- **Orientation sexuelle** : {orientation}
+- **Genre** : {gender}
+- **Fumeur** : {"Oui" if is_smoker else "Non"}
+- **Souhaite avoir des enfants** : {"Oui" if wants_kids else "Non"}
+- **Critère rédhibitoire (refuse un(e) partenaire fumeur)** : {"Oui" if dealbreakers_smoking else "Non"}
+- **Critère rédhibitoire (refuse un(e) partenaire ne voulant pas d'enfants)** : {"Oui" if dealbreakers_kids else "Non"}
+- **Rythme de vie** : {q1}
+- **Valeurs en couple** : {q2}
+- **Journée idéale** : {q3}
+- **Niveau d'engagement recherché** : {q4}/10
 
-🔹 Analyse et conseils :
+🔹 **Analyse et conseils** :
 - Dresse un portrait de cet utilisateur en fonction de ses réponses.
 - Souligne ses points forts en relation amoureuse.
 - Donne-lui des conseils pour trouver un partenaire compatible.
 - Termine par une phrase inspirante sur l’amour et les rencontres.
     """
-    st.write("🔍 Prompt envoyé à OpenAI :", prompt)  # Debug du prompt
+    print("🔍 Prompt envoyé à OpenAI :")
+    print(prompt)
 
     try:
-        response = openai.chat.completions.create(
-            api_key=api_key,
-            model="gpt-4",  # ou "gpt-3.5-turbo" si nécessaire
+        # Définir la clé API dans le module OpenAI
+        openai.api_key = api_key
+
+        # Utilisation de l'API Chat de OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Ou "gpt-3.5-turbo" selon tes besoins
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
         return response.choices[0].message.content
     except openai.OpenAIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
+
 
 # -------------------------------------------------------------------
 # 2. CONFIGURATION GOOGLE SHEETS
