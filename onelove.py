@@ -8,8 +8,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# DEBUG: Inspecter le contenu de st.secrets
-st.write("DEBUG - st.secrets keys:", list(st.secrets.keys()))
 
 service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
 st.write("DEBUG - Lecture JSON effectuée avec succès.")
