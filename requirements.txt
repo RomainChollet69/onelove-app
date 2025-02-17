@@ -1,4 +1,4 @@
-Openai
+openai>=1.0.0
 streamlit
 gspread
 oauth2client

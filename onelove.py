@@ -12,8 +12,8 @@ else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
 import openai
 
-# ✅ Instanciation correcte du client OpenAI
-client = openai.OpenAI(api_key=st.secrets["openai"]["api_key"])
+# ✅ Instanciation correcte du client OpenAI avec la nouvelle API
+client = openai.Client(api_key=st.secrets["openai"]["api_key"])
 
 def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
@@ -46,19 +46,20 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
     """
 
     print("🔍 Prompt envoyé à OpenAI :")
-    print(prompt)  # Debugging
+    print(prompt)  # Affiche le prompt pour voir s'il est bien généré
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        response = client.chat.completions.create(
+            model="gpt-4",  # Change en "gpt-3.5-turbo" si tu veux une version moins coûteuse
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
+            temperature=0.7  # Ajoute un peu de variation dans la réponse
         )
         
-        return response["choices"][0]["message"]["content"]  # ✅ Récupération correcte
+        return response.choices[0].message.content  # ✅ Retourne la réponse corrigée
 
-    except Exception as e:
-        return f"❌ Erreur avec OpenAI : {e}"
+    except openai.OpenAIError as e:
+        return f"❌ Erreur avec OpenAI : {str(e)}"
+
 
 
 
