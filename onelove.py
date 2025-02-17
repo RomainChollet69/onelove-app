@@ -52,7 +52,7 @@ def generate_feedback(user_id, total_score, orientation, gender, is_smoker, want
         response = openai.ChatCompletion.create(
             model="gpt-4",  # Change en "gpt-3.5-turbo" si besoin
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7  # Ajoute un peu de variation dans la réponse)
+            temperature=0.7 ) # Ajoute un peu de variation dans la réponse)
 
 
     # ✅ Bien indenté maintenant !
