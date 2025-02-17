@@ -12,7 +12,8 @@ else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
 import openai
 
-openai.api_key = st.secrets["openai"]["api_key"]  # Charger la clé API
+# ✅ Instanciation correcte du client OpenAI
+client = openai.OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
                       dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
