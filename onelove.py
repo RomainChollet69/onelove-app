@@ -37,7 +37,7 @@ Voici son profil détaillé :
 - **Journée idéale** : {q3}
 - **Niveau d'engagement recherché** : {q4}/10
 
-🔹 **Analyse et conseils** :
+🔹 Analyse et conseils :
 - Dresse un portrait de cet utilisateur en fonction de ses réponses.
 - Souligne ses points forts en relation amoureuse.
 - Donne-lui des conseils pour trouver un partenaire compatible.
@@ -45,20 +45,21 @@ Voici son profil détaillé :
     """
     print("🔍 Prompt envoyé à OpenAI :")
     print(prompt)
-
+    
     try:
         # Définir la clé API dans le module OpenAI
         openai.api_key = api_key
 
-        # Utilisation de l'API Chat de OpenAI
         response = openai.ChatCompletion.create(
-            model="gpt-4",  # Ou "gpt-3.5-turbo" selon tes besoins
+            model="gpt-4",  # ou "gpt-3.5-turbo" si nécessaire
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7
         )
-        return response.choices[0].message.content
+        # Accès au contenu du message via l'indexation du dictionnaire
+        return response.choices[0].message["content"]
     except openai.OpenAIError as e:
         return f"❌ Erreur avec OpenAI : {str(e)}"
+
 
 
 # -------------------------------------------------------------------
