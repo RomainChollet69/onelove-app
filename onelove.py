@@ -321,11 +321,34 @@ def page_result():
 
 
 # PAGE 6 : Matching
+def partner_allowed(user_static, other_static):
+    """
+    Détermine si le profil 'other_static' est admissible en fonction de l'orientation sexuelle
+    et du genre de l'utilisateur.
+    
+    - Pour un(e) hétérosexuel(le) : le partenaire doit être de genre opposé.
+    - Pour un(e) homosexuel(le) : le partenaire doit être du même genre.
+    - Pour un(e) bisexuel(le) ou pansexuel(le) ou "Autre" : tous les genres sont acceptés.
+    """
+    orientation = user_static.get("orientation", "").lower()
+    user_gender = user_static.get("gender", "").lower()
+    partner_gender = other_static.get("gender", "").lower()
+    
+    if orientation == "hétérosexuel(le)":
+        return user_gender != partner_gender
+    elif orientation == "homosexuel(le)":
+        return user_gender == partner_gender
+    elif orientation in ["bisexuel(le)", "pansexuel(le)"]:
+        return True
+    else:
+        # Pour "Autre", on autorise tous
+        return True
+
 def page_matching():
     st.title("Recherche de match")
     st.write("Nous vérifions si nous avons un profil compatible à au moins 60% avec vous.")
-    
-    # Demande du mode de communication sur cette page
+
+    # Demander le mode de communication sur cette page
     st.session_state.static_answers["interaction_choice"] = st.radio(
         "Comment souhaitez-vous entrer en communication avec votre match ?",
         ["discuter par chat", "par téléphone", "se rencontrer directement"]
@@ -345,7 +368,8 @@ def page_matching():
     if df.empty:
         st.info("Aucun profil n’est encore enregistré.")
         return
-    
+
+    # Récupérer le profil de l'utilisateur courant
     try:
         current_data_row = df[df["user_id"] == st.session_state.user_id]
         if current_data_row.empty:
@@ -355,9 +379,10 @@ def page_matching():
         current_static = current_data.get("static_answers", {})
     except Exception:
         current_static = st.session_state.static_answers
-    
+
     best_match = None
     best_score = 0
+    # Parcourir tous les autres profils
     for idx, row in df.iterrows():
         if row["user_id"] == st.session_state.user_id:
             continue
@@ -366,13 +391,16 @@ def page_matching():
             other_static = other_data.get("static_answers", {})
         except Exception:
             continue
+        # Filtrer par genre en fonction de l'orientation
+        if not partner_allowed(current_static, other_static):
+            continue
         comp = compute_compatibility(current_static, other_static)
         if comp > best_score:
             best_score = comp
             best_match = row["user_id"]
-    
+
     if not best_match:
-        st.info("Aucun autre profil n’a été trouvé.")
+        st.info("Aucun autre profil n’a été trouvé qui corresponde à vos critères.")
         return
 
     if best_score >= 60:
