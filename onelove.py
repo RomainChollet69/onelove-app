@@ -164,7 +164,7 @@ def page_personal():
             "age": age,
             "location": location
         })
-        # Intégrer ces infos dans static_answers
+        # Intégrer ces infos dans static_answers pour la suite
         st.session_state.static_answers.update({
             "gender": gender,
             "age": age,
@@ -240,7 +240,7 @@ def page_chatbot():
                 "role": "user",
                 "content": user_msg.strip()
             })
-            # Incrémenter le compteur si la dernière question posée par le chatbot contenait un "?"
+            # Incrémenter le compteur si la dernière question du chatbot contenait un "?"
             if len(st.session_state.chat_history) >= 2:
                 last_assistant_msg = st.session_state.chat_history[-2]["content"]
                 if "?" in last_assistant_msg:
@@ -265,13 +265,14 @@ def page_chatbot():
 def page_result():
     st.title("Résumé de votre profil")
     st.write("Voici un résumé de votre profil, tel qu'un test psychologique vous décrirait.")
+
     static_str = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_str = "\n".join([
         f"{msg['role'].upper()} : {msg['content']}"
         for msg in st.session_state.chat_history if msg["role"] != "system"
     ])
     prompt_summary = (
-        "Voici les informations d'un utilisateur (ses réponses personnelles et psychologiques ainsi qu'un échange avec un chatbot). "
+        "Voici les informations d'un utilisateur (ses réponses personnelles et psychologiques, ainsi qu'un échange avec un chatbot). "
         "Rédigez un résumé de son profil en le vouvoyant, en décrivant sa personnalité, ses attentes et ses atouts en amour. "
         "Adaptez le ton en fonction de son genre (par exemple, mentionnez 'vous êtes un homme' ou 'vous êtes une femme' si pertinent).\n\n"
         f"--- Informations :\n{static_str}\n---\nConversation :\n{chat_str}\n"
@@ -295,12 +296,7 @@ def page_result():
     
     st.write(st.session_state.profile_summary)
     
-    # L'utilisateur choisit son mode de communication (1 seul choix)
-    st.session_state.static_answers["interaction_choice"] = st.radio(
-        "Comment souhaitez-vous entrer en communication avec votre match ?",
-        ["discuter par chat", "par téléphone", "se rencontrer directement"]
-    )
-    
+    # Pas de choix du mode de communication ici, cela sera fait en page Matching
     if st.button("Découvrez si nous avons quelqu’un de compatible avec vous"):
         go_to_page("matching")
 
@@ -308,6 +304,12 @@ def page_result():
 def page_matching():
     st.title("Recherche de match")
     st.write("Nous vérifions si nous avons un profil compatible à au moins 60% avec vous.")
+    
+    # Demande du mode de communication sur cette page
+    st.session_state.static_answers["interaction_choice"] = st.radio(
+        "Comment souhaitez-vous entrer en communication avec votre match ?",
+        ["discuter par chat", "par téléphone", "se rencontrer directement"]
+    )
     
     # Enregistrement final du profil dans Google Sheets (score et feedback non utilisés ici)
     store_data_to_sheet(
