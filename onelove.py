@@ -278,21 +278,24 @@ def page_chatbot():
 
 # PAGE 5 : Résumé du profil (style test psychologique)
 def page_result():
-    st.title("Résumé de votre profil")
-    st.write("Voici un résumé de votre profil, tel qu'un test psychologique vous décrirait.")
-
+    st.title("Votre profil amoureux")
+    st.write("Notre Love Psy vous a analysé et voici le profil qu'il dresse de vous !")
+    
+    # Préparation des données à envoyer pour la génération du résumé
     static_str = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_str = "\n".join([
         f"{msg['role'].upper()} : {msg['content']}"
         for msg in st.session_state.chat_history if msg["role"] != "system"
     ])
+    
     prompt_summary = (
         "Voici les informations d'un utilisateur (ses réponses personnelles et psychologiques, ainsi qu'un échange avec un chatbot). "
-        "Rédigez un résumé de son profil en le vouvoyant, en décrivant sa personnalité, ses attentes et ses atouts en amour. "
-        "Adaptez le ton en fonction de son genre (par exemple, mentionnez 'vous êtes un homme' ou 'vous êtes une femme' si pertinent).\n\n"
+        "Veuillez fournir un résumé de son profil amoureux en le vouvoyant, en décrivant sa personnalité, ses attentes et ses atouts en amour, "
+        "sans utiliser de formules introductives classiques (ne commencez pas par 'Voici un résumé de votre profil...' etc.). "
+        "Commencez directement par la description de son profil.\n\n"
         f"--- Informations :\n{static_str}\n---\nConversation :\n{chat_str}\n"
     )
-
+    
     with st.spinner("Génération du résumé..."):
         try:
             resp = openai.ChatCompletion.create(
@@ -311,9 +314,9 @@ def page_result():
     
     st.write(st.session_state.profile_summary)
     
-    # Pas de choix du mode de communication ici, cela sera fait en page Matching
     if st.button("Découvrez si nous avons quelqu’un de compatible avec vous"):
         go_to_page("matching")
+
 
 # PAGE 6 : Matching
 def page_matching():
