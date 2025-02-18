@@ -293,7 +293,7 @@ def page_chatbot():
                 "role": "assistant",
                 "content": assistant_text
             })
-            st.session_state.chat_input = ""  # Réinitialiser le champ
+            #st.session_state.chat_input = ""  # Réinitialiser le champ
             return
 
     if st.button("Terminer maintenant"):
