@@ -288,11 +288,12 @@ def page_result():
         for msg in st.session_state.chat_history if msg["role"] != "system"
     ])
     
+    # Le prompt demande expressément de s'adresser à l'utilisateur avec "vous".
     prompt_summary = (
         "Voici les informations d'un utilisateur (ses réponses personnelles et psychologiques, ainsi qu'un échange avec un chatbot). "
-        "Veuillez fournir un résumé de son profil amoureux en le vouvoyant, en décrivant sa personnalité, ses attentes et ses atouts en amour, "
-        "sans utiliser de formules introductives classiques (ne commencez pas par 'Voici un résumé de votre profil...' etc.). "
-        "Commencez directement par la description de son profil.\n\n"
+        "Veuillez rédiger un résumé de son profil amoureux en vous adressant directement à l'utilisateur avec le pronom 'vous'. "
+        "Utilisez un ton bienveillant et professionnel, sans formules introductives génériques. "
+        "Commencez directement par décrire le profil. \n\n"
         f"--- Informations :\n{static_str}\n---\nConversation :\n{chat_str}\n"
     )
     
@@ -316,6 +317,7 @@ def page_result():
     
     if st.button("Découvrez si nous avons quelqu’un de compatible avec vous"):
         go_to_page("matching")
+
 
 
 # PAGE 6 : Matching
