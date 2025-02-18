@@ -132,7 +132,7 @@ def page_login():
             st.session_state.user_id = user_input.strip()
             go_to_page("basics")
 
-# ----- PAGE 2 : Questions de base (très courte version de test) -----
+# ----- PAGE 2 : Questions de base (version très courte) -----
 def page_basics():
     st.title("Questions de base")
     orientation = st.radio("Quelle est ton orientation sexuelle ?",
@@ -177,7 +177,7 @@ def page_chatbot():
             go_to_page("result")
         return
     
-    # Saisie de la réponse utilisateur (sans formulaire pour éviter le double-clic)
+    # Saisie de la réponse utilisateur (sans affecter la valeur pour vider le widget)
     user_msg = st.text_input("Votre réponse :", key="chat_input")
     
     if st.button("Envoyer"):
@@ -196,7 +196,6 @@ def page_chatbot():
                     "role": "assistant",
                     "content": "FIN DE QUESTIONNAIRE"
                 })
-                st.session_state["chat_input"] = ""
                 return
             # Sinon, obtenir la prochaine question via OpenAI
             with st.spinner("Le chatbot réfléchit..."):
@@ -211,7 +210,6 @@ def page_chatbot():
                 "role": "assistant",
                 "content": assistant_text
             })
-            st.session_state["chat_input"] = ""
             return
     
     if st.button("Terminer maintenant"):
