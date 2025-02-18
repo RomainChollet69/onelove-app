@@ -25,7 +25,7 @@ service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, SCOPES)
 client = gspread.authorize(creds)
 
-# Assurez-vous que votre Google Sheet a pour en-têtes : 
+# Assurez-vous que votre Google Sheet a pour en-têtes :
 # user_id | timestamp | data | score | feedback
 SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
 sheet = client.open_by_key(SHEET_KEY).sheet1
@@ -84,7 +84,7 @@ def compute_compatibility(user_static, other_static):
       - Journée idéale : 2.5
       - Niveau d'engagement : 3.0
     Score maximum théorique = 19.5 points.
-    Pourcentage = (score / 19.5)*100
+    Pourcentage = (score / 19.5) * 100
     """
     total = 0
     max_total = 19.5
@@ -236,7 +236,7 @@ def page_static():
 # ----- PAGE 3 : Chatbot interactif (max 3 questions) -----
 def page_chatbot():
     st.title("Questions complémentaires")
-    # Initialisation de la conversation si vide
+    # Initialiser la conversation si vide
     if not st.session_state.chat_history:
         st.session_state.chat_history.append({
             "role": "system",
@@ -261,10 +261,9 @@ def page_chatbot():
         st.success("Le questionnaire est terminé !")
         if st.button("Voir les résultats"):
             go_to_page("result")
-            st.experimental_rerun()
         return
     
-    # Utilisation d'un formulaire pour saisir la réponse
+    # Utilisation d'un formulaire pour la saisie
     with st.form(key="chat_form"):
         user_answer = st.text_input("Votre réponse:")
         submitted = st.form_submit_button("Envoyer")
@@ -279,13 +278,12 @@ def page_chatbot():
             last_assistant_msg = st.session_state.chat_history[-2]["content"]
             if "?" in last_assistant_msg:
                 st.session_state.question_count += 1
-        # Si après cette réponse le compteur atteint 3, on termine le questionnaire
+        # Si 3 questions sont posées, forcer la fin du questionnaire
         if st.session_state.question_count == 3:
             st.session_state.chat_history.append({
                 "role": "assistant",
                 "content": "FIN DE QUESTIONNAIRE"
             })
-            st.experimental_rerun()
             return
         else:
             with st.spinner("Le chatbot réfléchit..."):
@@ -300,15 +298,13 @@ def page_chatbot():
                 "role": "assistant",
                 "content": assistant_text
             })
-            st.experimental_rerun()
             return
-
+    
     if st.button("Terminer maintenant"):
         st.session_state.chat_history.append({
             "role": "assistant",
             "content": "FIN DE QUESTIONNAIRE"
         })
-        st.experimental_rerun()
         return
 
 # ----- PAGE 4 : Résultats et choix d'interaction -----
@@ -324,105 +320,4 @@ def page_result():
     static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_info = "\n".join([f"{msg['role'].upper()} : {msg['content']}" 
                            for msg in st.session_state.chat_history if msg["role"] != "system"])
-    full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
-    
-    analysis_prompt = (
-        "Analyse ces informations pour dresser un profil rapide et fournir un court feedback sur la personnalité de l'utilisateur. "
-        "Réponds sous forme JSON : {\"feedback\": \"...\"}.\n\n" + full_text
-    )
-    
-    with st.spinner("Analyse en cours..."):
-        try:
-            resp = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "Tu es un expert en matchmaking."},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=300
-            )
-            analysis_text = resp.choices[0].message["content"].strip()
-            result_json = json.loads(analysis_text)
-            st.session_state.feedback = result_json.get("feedback", "")
-        except Exception as e:
-            st.error(f"Erreur lors de l'analyse : {e}")
-            st.session_state.feedback = "Impossible de générer un feedback."
-    
-    st.subheader("Feedback :")
-    st.write(st.session_state.feedback)
-    
-    # Enregistrement dans Google Sheets
-    store_data_to_sheet(
-        st.session_state.user_id,
-        {"static_answers": st.session_state.static_answers, "chat_history": st.session_state.chat_history},
-        st.session_state.score if st.session_state.score is not None else 0,
-        st.session_state.feedback
-    )
-    
-    if st.button("Voir mes matchs"):
-        go_to_page("matching")
-        st.experimental_rerun()
-
-# ----- PAGE 5 : Matching -----
-def page_matching():
-    st.title("Mes matchs")
-    st.write("Voici votre match (prénom et pourcentage de compatibilité).")
-    
-    df = get_all_data_as_df()
-    if df.empty:
-        st.info("Aucun profil enregistré pour le moment.")
-        return
-    
-    try:
-        current_data = json.loads(df[df["user_id"] == st.session_state.user_id]["data"].iloc[0])
-        current_static = current_data.get("static_answers", {})
-    except Exception:
-        current_static = st.session_state.static_answers
-    
-    matches = []
-    for idx, row in df.iterrows():
-        if row["user_id"] == st.session_state.user_id:
-            continue
-        try:
-            other_data = json.loads(row["data"])
-            other_static = other_data.get("static_answers", {})
-        except Exception:
-            continue
-        comp = compute_compatibility(current_static, other_static)
-        matches.append({
-            "user_id": row["user_id"],
-            "compatibility": comp,
-            "interaction_choice": other_static.get("interaction_choice", "non défini")
-        })
-    
-    if not matches:
-        st.info("Aucun autre profil n'a encore répondu.")
-        return
-    
-    match = max(matches, key=lambda x: x["compatibility"])
-    
-    st.write(f"**Match trouvé : {match['user_id']}**")
-    st.write(f"**Compatibilité : {match['compatibility']}%**")
-    st.write(f"**Votre choix d'interaction :** {st.session_state.static_answers.get('interaction_choice', 'non défini')}")
-    st.write(f"**Le choix de {match['user_id']} :** {match['interaction_choice']}")
-    
-    if st.session_state.static_answers.get("interaction_choice") == match["interaction_choice"]:
-        st.success(f"Vous êtes appariés pour {match['interaction_choice']} !")
-        st.write("Une interaction (chat, appel ou rencontre) va s'ouvrir.")
-    else:
-        st.info("Votre mode d'interaction n'est pas encore apparié avec votre match. Réessayez plus tard.")
-
-# =============================================================================
-# 6. ROUTAGE PRINCIPAL DE L'APPLICATION
-# =============================================================================
-if st.session_state.page == "login":
-    page_login()
-elif st.session_state.page == "static":
-    page_static()
-elif st.session_state.page == "chatbot":
-    page_chatbot()
-elif st.session_state.page == "result":
-    page_result()
-elif st.session_state.page == "matching":
-    page_matching()
+    full_text = 
