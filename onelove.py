@@ -303,7 +303,7 @@ def page_lifestyle():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "lifestyle_matin_ou_soir": q_life_1,
             "lifestyle_energie": q_life_2,
             "lifestyle_organisation": q_life_3
@@ -328,7 +328,7 @@ def page_sociability():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "soc_extraverti_intro": q_soc_1,
             "soc_importance_amis": q_soc_2
         })
@@ -357,7 +357,7 @@ def page_vision():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "vision_engagement": q_vis_1,
             "vision_enfants": q_vis_2,
             "vision_distance": q_vis_3
@@ -387,7 +387,7 @@ def page_experience():
         submitted = st.form_submit_button("Terminer")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "exp_relation_longue": q_exp_1,
             "exp_cohabitation": q_exp_2,
             "exp_lecon_relation": q_exp_3
