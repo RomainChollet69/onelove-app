@@ -1,73 +1,27 @@
 import streamlit as st
 import json
 import pandas as pd
+import datetime
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import openai
 
-# -------------------------------------------------------------------
+# =============================================================================
 # 1. CONFIGURATION DES SECRETS & API
-# -------------------------------------------------------------------
-# Vérifier que la clé API OpenAI est chargée
+# =============================================================================
 if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
     st.success("✅ Clé API OpenAI chargée avec succès !")
 else:
     st.error("❌ Erreur : Impossible de charger la clé API OpenAI.")
 
-# Chargement de la clé API OpenAI
+# Configuration de l'API OpenAI
 api_key = st.secrets["openai"]["api_key"]
+openai.api_key = api_key
 
-# Fonction pour générer un feedback via OpenAI
-def generate_feedback(user_id, total_score, orientation, gender, is_smoker, wants_kids, 
-                      dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4):
-    prompt = f"""
-Un utilisateur vient de compléter le test de compatibilité IA sur OneLove.
-Voici son profil détaillé :
-
-- **ID** : {user_id}
-- **Score de compatibilité** : {total_score}/15
-- **Orientation sexuelle** : {orientation}
-- **Genre** : {gender}
-- **Fumeur** : {"Oui" if is_smoker else "Non"}
-- **Souhaite avoir des enfants** : {"Oui" if wants_kids else "Non"}
-- **Critère rédhibitoire (refuse un(e) partenaire fumeur)** : {"Oui" if dealbreakers_smoking else "Non"}
-- **Critère rédhibitoire (refuse un(e) partenaire ne voulant pas d'enfants)** : {"Oui" if dealbreakers_kids else "Non"}
-- **Rythme de vie** : {q1}
-- **Valeurs en couple** : {q2}
-- **Journée idéale** : {q3}
-- **Niveau d'engagement recherché** : {q4}/10
-
-🔹 Analyse et conseils :
-- Dresse un portrait de cet utilisateur en fonction de ses réponses.
-- Souligne ses points forts en relation amoureuse.
-- Donne-lui des conseils pour trouver un partenaire compatible.
-- Termine par une phrase inspirante sur l’amour et les rencontres.
-    """
-    print("🔍 Prompt envoyé à OpenAI :")
-    print(prompt)
-    
-    try:
-        # Définir la clé API globalement (sans la passer comme argument)
-        openai.api_key = st.secrets["openai"]["api_key"]
-        
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7
-)
-
-        return response.choices[0].message["content"]
-    except openai.OpenAIError as e:
-        return f"❌ Erreur avec OpenAI : {str(e)}"
-
-
-
-
-# -------------------------------------------------------------------
+# =============================================================================
 # 2. CONFIGURATION GOOGLE SHEETS
-# -------------------------------------------------------------------
+# =============================================================================
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-
 service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, SCOPES)
 client = gspread.authorize(creds)
@@ -76,215 +30,261 @@ client = gspread.authorize(creds)
 SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
 sheet = client.open_by_key(SHEET_KEY).sheet1
 
-# -------------------------------------------------------------------
+# =============================================================================
 # 3. FONCTIONS UTILES
-# -------------------------------------------------------------------
-def append_to_sheet(data_list):
+# =============================================================================
+
+def get_chatbot_response(conversation):
     """
-    Envoie une ligne de données à la Google Sheet.
-    L'ordre doit correspondre à l'en-tête : 
-    user_id, orientation, gender, is_smoker, wants_kids, dealbreakers_smoking, dealbreakers_kids, q1, q2, q3, q4, total_score
+    Envoie l'historique de conversation à l'API OpenAI pour obtenir la réponse du chatbot.
     """
-    sheet.append_row(data_list)
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=conversation,
+            temperature=0.7,
+            max_tokens=200
+        )
+        return response.choices[0].message["content"].strip()
+    except openai.OpenAIError as e:
+        st.error(f"Erreur avec OpenAI : {str(e)}")
+        return "Désolé, une erreur est survenue."
+
+def store_conversation_to_sheet(user_id, conversation, score, feedback):
+    """
+    Stocke la conversation complète avec horodatage et les résultats dans Google Sheets.
+    Les colonnes enregistrées sont : user_id, timestamp, conversation (en JSON), score, feedback.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # On stocke la conversation sous forme de chaîne JSON
+    conversation_str = json.dumps(conversation, ensure_ascii=False)
+    data_row = [user_id, timestamp, conversation_str, score, feedback]
+    sheet.append_row(data_row)
 
 def get_all_data_as_df():
+    """
+    Récupère toutes les données de la Google Sheet sous forme de DataFrame.
+    """
     records = sheet.get_all_values()
     if not records or len(records) < 2:
         return pd.DataFrame()
     df = pd.DataFrame(records[1:], columns=records[0])
     return df
 
-# -------------------------------------------------------------------
-# 4. GESTION DE LA SESSION & NAVIGATION
-# -------------------------------------------------------------------
+# =============================================================================
+# 4. GESTION DE LA SESSION
+# =============================================================================
 if "page" not in st.session_state:
     st.session_state.page = "login"
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
-if "answers" not in st.session_state:
-    st.session_state.answers = {}
+if "chat_history" not in st.session_state:
+    # Initialisation de l'historique avec un prompt système pour guider le chatbot
+    st.session_state.chat_history = [{
+        "role": "system",
+        "content": (
+            "Vous êtes un expert en matchmaking. Posez une série d'au moins 30 questions pour "
+            "établir le profil de l'utilisateur. Adaptez vos questions en fonction de ses réponses "
+            "et approfondissez certains aspects si besoin. À la fin, résumez le profil et attribuez-lui "
+            "un score de compatibilité sur 100. Lorsque le questionnaire est terminé, affichez 'FIN DE QUESTIONNAIRE'."
+        )
+    }]
+if "question_count" not in st.session_state:
+    st.session_state.question_count = 0  # Compteur du nombre de questions posées (par le chatbot)
+if "score" not in st.session_state:
+    st.session_state.score = None
+if "feedback" not in st.session_state:
+    st.session_state.feedback = ""
+if "likes" not in st.session_state:
+    st.session_state.likes = {}  # Pour stocker les like/dislike sur les profils
 
 def go_to_page(page_name):
     st.session_state.page = page_name
 
-# -------------------------------------------------------------------
+# =============================================================================
 # 5. PAGES DE L'APPLICATION
-# -------------------------------------------------------------------
+# =============================================================================
+
 def page_login():
     st.title("Bienvenue sur OneLove – Matchmaking IA")
-    st.write("Veuillez vous identifier pour continuer.")
+    st.write("Veuillez vous identifier pour commencer le questionnaire interactif.")
     user_input = st.text_input("Entrez votre pseudo ou email :")
     if st.button("Commencer"):
         if user_input.strip() == "":
             st.warning("Merci de renseigner un identifiant.")
         else:
             st.session_state.user_id = user_input.strip()
-            go_to_page("profile_info")
+            go_to_page("chatbot")
 
-def page_profile_info():
-    st.title("Profil – Informations personnelles")
-    orientation = st.radio(
-        "Quelle est ton orientation sexuelle ?",
-        ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"]
-    )
-    st.session_state.answers["orientation"] = orientation
-    if orientation == "Autre":
-        st.session_state.answers["orientation_detail"] = st.text_input("Précise si besoin :")
-    else:
-        st.session_state.answers["orientation_detail"] = ""
-    gender = st.radio("Quel est ton genre ?", ["Homme", "Femme", "Autre"])
-    st.session_state.answers["gender"] = gender
-    is_smoker = st.radio("Es-tu fumeur/fumeuse ?", ["Oui", "Non"])
-    st.session_state.answers["is_smoker"] = (is_smoker == "Oui")
-    wants_kids = st.radio("Souhaites-tu avoir des enfants ?", ["Oui", "Non"])
-    st.session_state.answers["wants_kids"] = (wants_kids == "Oui")
-    if st.button("Suivant"):
-        go_to_page("dealbreakers")
-
-def page_dealbreakers():
-    st.title("Critères rédhibitoires")
-    dealbreakers_smoking = st.checkbox("Je refuse absolument un(e) partenaire fumeur/fumeuse")
-    st.session_state.answers["dealbreakers_smoking"] = dealbreakers_smoking
-    dealbreakers_kids = st.checkbox("Je refuse un(e) partenaire qui ne veut pas d'enfant (ou inverse)")
-    st.session_state.answers["dealbreakers_kids"] = dealbreakers_kids
-    if st.button("Suivant"):
-        go_to_page("questions_part1")
-
-def page_questions_part1():
-    st.title("Questionnaire – Personnalité / Style de vie")
-    q1 = st.radio(
-        "Comment décrirais-tu ton rythme de vie ?",
-        ["Très actif(ve)", "Assez actif(ve)", "Plutôt calme", "Très tranquille"]
-    )
-    st.session_state.answers["q1"] = q1
-    q2 = st.radio(
-        "Dans une relation, qu'est-ce qui est le plus important ?",
-        ["A) La communication", "B) La complicité", "C) L'aventure", "D) La stabilité"]
-    )
-    st.session_state.answers["q2"] = q2
-    q3 = st.text_input("Décris brièvement une journée idéale :")
-    st.session_state.answers["q3"] = q3
-    q4 = st.slider(
-        "À quel point cherches-tu une relation sérieuse ? (0 = pas du tout, 10 = très sérieux)",
-        0, 10, 5
-    )
-    st.session_state.answers["q4"] = q4
-    if st.button("Valider et calculer mon score"):
-        # Scoring simplifié
-        score_q1_map = {"Très actif(ve)": 8, "Assez actif(ve)": 6, "Plutôt calme": 4, "Très tranquille": 2}
-        s_q1 = score_q1_map.get(q1, 0)
-        score_q2_map = {"A) La communication": 10, "B) La complicité": 8, "C) L'aventure": 7, "D) La stabilité": 6}
-        s_q2 = score_q2_map.get(q2, 0)
-        keywords = {"voyage": 5, "plage": 5, "océan": 5, "aventure": 5, "tranquillité": 3, "famille": 3, "sport": 3, "culture": 3}
-        s_q3 = sum(val for w, val in keywords.items() if w in q3.lower())
-        s_q4 = q4
-        total_score = s_q1 + s_q2 + s_q3 + s_q4
-        st.session_state.answers["total_score"] = total_score
-        # Enregistrement dans la Google Sheet (12 colonnes)
-        append_to_sheet([
-            st.session_state.user_id,
-            st.session_state.answers["orientation"],
-            st.session_state.answers["gender"],
-            str(st.session_state.answers["is_smoker"]),
-            str(st.session_state.answers["wants_kids"]),
-            str(st.session_state.answers["dealbreakers_smoking"]),
-            str(st.session_state.answers["dealbreakers_kids"]),
-            q1,
-            q2,
-            q3,
-            q4,
-            total_score
-        ])
-        go_to_page("result")
+def page_chatbot():
+    st.title("Chatbot interactif – Questionnaire de matchmaking")
+    
+    st.write("La conversation se déroule ci-dessous. Répondez aux questions et le chatbot s'adaptera à vos réponses.")
+    
+    # Affichage de l'historique de la conversation
+    for msg in st.session_state.chat_history[1:]:  # On n'affiche pas le message système
+        if msg["role"] == "assistant":
+            st.markdown(f"**Chatbot :** {msg['content']}")
+        elif msg["role"] == "user":
+            st.markdown(f"**Vous :** {msg['content']}")
+    
+    # Vérifier si le questionnaire est terminé (si le dernier message contient "FIN DE QUESTIONNAIRE")
+    if st.session_state.chat_history[-1]["role"] == "assistant" and "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"]:
+        st.success("Le questionnaire est terminé !")
+        if st.button("Voir les résultats"):
+            go_to_page("result")
+        return
+    
+    # Zone de saisie pour la réponse utilisateur
+    with st.form(key="chat_input_form", clear_on_submit=True):
+        user_message = st.text_input("Votre réponse :", "")
+        submit = st.form_submit_button("Envoyer")
+    
+    if submit and user_message.strip() != "":
+        # Ajout de la réponse de l'utilisateur à l'historique
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_message.strip()
+        })
+        with st.spinner("Le chatbot réfléchit..."):
+            assistant_response = get_chatbot_response(st.session_state.chat_history)
+        # Ajout de la réponse du chatbot
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": assistant_response
+        })
+        # Incrémentation du compteur si le chatbot pose une question (vérification sommaire)
+        if "?" in assistant_response:
+            st.session_state.question_count += 1
+        st.experimental_rerun()  # Rafraîchissement de la page pour afficher le nouvel échange
 
 def page_result():
-    st.title("Résultats, Feedback et Matching")
-    total_score = st.session_state.answers.get("total_score", 0)
-    st.write(f"**Votre score : {total_score}**")
+    st.title("Analyse du questionnaire – Résultats et feedback")
+    st.write("Nous analysons vos réponses pour générer un profil détaillé.")
     
-    st.write("⏳ Génération du feedback en cours...")
-    feedback = generate_feedback(
-        st.session_state.user_id,
-        total_score,
-        st.session_state.answers.get("orientation", "Non précisé"),
-        st.session_state.answers.get("gender", "Non précisé"),
-        st.session_state.answers.get("is_smoker", False),
-        st.session_state.answers.get("wants_kids", False),
-        st.session_state.answers.get("dealbreakers_smoking", False),
-        st.session_state.answers.get("dealbreakers_kids", False),
-        st.session_state.answers.get("q1", "Non précisé"),
-        st.session_state.answers.get("q2", "Non précisé"),
-        st.session_state.answers.get("q3", "Non précisé"),
-        st.session_state.answers.get("q4", 5),
+    # Préparation du prompt pour analyser la conversation complète
+    conversation_str = "\n\n".join(
+        [f"{msg['role'].upper()} : {msg['content']}" for msg in st.session_state.chat_history if msg["role"] != "system"]
     )
-    st.write("✅ Réponse OpenAI reçue :")
-    st.write(feedback)
     
-    # Récupérer les profils enregistrés depuis la Google Sheet
+    analysis_prompt = (
+        "Analyse la conversation suivante entre un utilisateur et un chatbot de matchmaking. "
+        "Sur la base des réponses de l'utilisateur, attribue un score de compatibilité sur 100 et donne un feedback personnalisé. "
+        "Réponds sous forme de JSON, par exemple : {\"score\": 85, \"feedback\": \"...\"}.\n\n"
+        f"Conversation :\n{conversation_str}"
+    )
+    
+    with st.spinner("Analyse en cours..."):
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Tu es un expert en matchmaking et tu analyses un questionnaire."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=300
+            )
+            analysis_text = response.choices[0].message["content"].strip()
+            st.code(analysis_text, language="json")
+            # Tentative de parsing du JSON retourné
+            result_json = json.loads(analysis_text)
+            st.session_state.score = result_json.get("score", None)
+            st.session_state.feedback = result_json.get("feedback", "")
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse de la conversation : {str(e)}")
+            st.session_state.score = None
+            st.session_state.feedback = "Impossible d'obtenir un feedback détaillé."
+
+    if st.session_state.score is not None:
+        st.subheader(f"Votre score de compatibilité : {st.session_state.score}/100")
+    st.write("**Feedback personnalisé :**")
+    st.write(st.session_state.feedback)
+    
+    # Stockage de la conversation et des résultats dans Google Sheets
+    store_conversation_to_sheet(
+        st.session_state.user_id,
+        st.session_state.chat_history,
+        st.session_state.score if st.session_state.score is not None else "N/A",
+        st.session_state.feedback
+    )
+    
+    if st.button("Voir les profils compatibles"):
+        go_to_page("matching")
+
+def page_matching():
+    st.title("Profils compatibles – Matching avancé")
+    st.write("Les profils ci-dessous ont un score proche du vôtre. Vous pouvez indiquer si vous les aimez ou non.")
+    
     df = get_all_data_as_df()
     if df.empty:
-        st.write("Aucune donnée enregistrée pour le moment.")
+        st.info("Aucune donnée n'a encore été enregistrée.")
         return
-    # Conversion des colonnes booléennes
-    for col in ["is_smoker", "wants_kids", "dealbreakers_smoking", "dealbreakers_kids"]:
-        df[col] = df[col].apply(lambda x: str(x).lower() == "true")
-    df["total_score"] = pd.to_numeric(df["total_score"], errors="coerce")
     
-    # Mes critères personnels
-    my_orientation = st.session_state.answers["orientation"]
-    my_gender = st.session_state.answers["gender"]
-    my_smoker = st.session_state.answers["is_smoker"]
-    my_kids = st.session_state.answers["wants_kids"]
-    my_ds_smoking = st.session_state.answers["dealbreakers_smoking"]
-    my_ds_kids = st.session_state.answers["dealbreakers_kids"]
+    # Conversion du score en numérique (si possible)
+    try:
+        df["score"] = pd.to_numeric(df["score"], errors="coerce")
+    except Exception:
+        st.error("Erreur de conversion des scores.")
+        return
     
-    # Fonction d'exclusion basée sur les dealbreakers
-    def is_excluded(row):
-        if my_ds_smoking and row["is_smoker"]:
-            return True
-        if row["dealbreakers_smoking"] and my_smoker:
-            return True
-        if my_ds_kids and (row["wants_kids"] == False):
-            return True
-        if row["dealbreakers_kids"] and (my_kids == False):
-            return True
-        return False
+    # Filtrage : on garde uniquement les profils dont le score est proche (±10 points)
+    user_score = st.session_state.score if st.session_state.score is not None else 0
+    min_score = user_score - 10
+    max_score = user_score + 10
+    filtered_df = df[(df["score"] >= min_score) & (df["score"] <= max_score)]
+    # Exclure le profil de l'utilisateur courant
+    filtered_df = filtered_df[filtered_df["user_id"] != st.session_state.user_id]
     
-    df["excluded"] = df.apply(is_excluded, axis=1)
-    # Filtre par score (±2 points) et exclusion
-    min_score = total_score - 2
-    max_score = total_score + 2
-    compatible_profiles = df[
-        (df["excluded"] == False) &
-        (df["total_score"] >= min_score) &
-        (df["total_score"] <= max_score)
-    ].copy()
-    # Exclure mon propre profil
-    compatible_profiles = compatible_profiles[compatible_profiles["user_id"] != st.session_state.user_id]
-    
-    if not compatible_profiles.empty:
-        st.subheader("Profils compatibles :")
-        for idx, row in compatible_profiles.iterrows():
-            st.write(f"- **ID** : {row['user_id']} | **Score** : {row['total_score']} "
-                     f"| **Orientation** : {row['orientation']} | **Fumeur** : {row['is_smoker']} | **Enfants** : {row['wants_kids']}")
+    if filtered_df.empty:
+        st.info("Aucun profil compatible trouvé pour le moment.")
     else:
-        st.write("Aucun profil proche de votre score n’a été trouvé pour le moment.")
+        # Affichage des profils sous forme de cartes interactives
+        for idx, row in filtered_df.iterrows():
+            with st.container():
+                st.markdown(f"### Profil : {row['user_id']}")
+                st.write(f"**Score :** {row['score']}/100")
+                st.write("**Feedback résumé :**")
+                st.write(row['feedback'])
+                # Boutons de like / dislike
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"👍 J’aime - {row['user_id']}", key=f"like_{idx}"):
+                        st.session_state.likes[row['user_id']] = "like"
+                        st.success(f"Vous avez liké {row['user_id']}.")
+                with col2:
+                    if st.button(f"👎 Je n’aime pas - {row['user_id']}", key=f"dislike_{idx}"):
+                        st.session_state.likes[row['user_id']] = "dislike"
+                        st.warning(f"Vous n'avez pas aimé {row['user_id']}.")
+                st.markdown("---")
     
     if st.button("Refaire le questionnaire"):
-        st.session_state.answers = {}
+        # Réinitialiser la session pour un nouveau questionnaire
+        st.session_state.page = "login"
         st.session_state.user_id = None
-        go_to_page("login")
+        st.session_state.chat_history = [{
+            "role": "system",
+            "content": (
+                "Vous êtes un expert en matchmaking. Posez une série d'au moins 30 questions pour "
+                "établir le profil de l'utilisateur. Adaptez vos questions en fonction de ses réponses "
+                "et approfondissez certains aspects si besoin. À la fin, résumez le profil et attribuez-lui "
+                "un score de compatibilité sur 100. Lorsque le questionnaire est terminé, affichez 'FIN DE QUESTIONNAIRE'."
+            )
+        }]
+        st.session_state.question_count = 0
+        st.session_state.score = None
+        st.session_state.feedback = ""
+        st.session_state.likes = {}
+        st.experimental_rerun()
 
-# -------------------------------------------------------------------
-# 6. ROUTAGE PRINCIPAL
-# -------------------------------------------------------------------
+# =============================================================================
+# 6. ROUTAGE PRINCIPAL DE L'APPLICATION
+# =============================================================================
 if st.session_state.page == "login":
     page_login()
-elif st.session_state.page == "profile_info":
-    page_profile_info()
-elif st.session_state.page == "dealbreakers":
-    page_dealbreakers()
-elif st.session_state.page == "questions_part1":
-    page_questions_part1()
+elif st.session_state.page == "chatbot":
+    page_chatbot()
 elif st.session_state.page == "result":
     page_result()
+elif st.session_state.page == "matching":
+    page_matching()
