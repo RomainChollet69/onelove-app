@@ -320,4 +320,105 @@ def page_result():
     static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_info = "\n".join([f"{msg['role'].upper()} : {msg['content']}" 
                            for msg in st.session_state.chat_history if msg["role"] != "system"])
-    full_text = 
+    full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
+    
+    analysis_prompt = (
+        "Analyse ces informations pour dresser un profil rapide et fournir un court feedback sur la personnalité de l'utilisateur. "
+        "Réponds sous forme JSON : {\"feedback\": \"...\"}.\n\n" +
+        full_text
+    )
+    
+    with st.spinner("Analyse en cours..."):
+        try:
+            resp = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Tu es un expert en matchmaking."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                temperature=0.7,
+                max_tokens=300
+            )
+            analysis_text = resp.choices[0].message["content"].strip()
+            result_json = json.loads(analysis_text)
+            st.session_state.feedback = result_json.get("feedback", "")
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse : {e}")
+            st.session_state.feedback = "Impossible de générer un feedback."
+    
+    st.subheader("Feedback :")
+    st.write(st.session_state.feedback)
+    
+    store_data_to_sheet(
+        st.session_state.user_id,
+        {"static_answers": st.session_state.static_answers, "chat_history": st.session_state.chat_history},
+        st.session_state.score if st.session_state.score is not None else 0,
+        st.session_state.feedback
+    )
+    
+    if st.button("Voir mes matchs"):
+        go_to_page("matching")
+        return
+
+# ----- PAGE 5 : Matching -----
+def page_matching():
+    st.title("Mes matchs")
+    st.write("Voici votre match (prénom et pourcentage de compatibilité).")
+    
+    df = get_all_data_as_df()
+    if df.empty:
+        st.info("Aucun profil enregistré pour le moment.")
+        return
+    
+    try:
+        current_data = json.loads(df[df["user_id"] == st.session_state.user_id]["data"].iloc[0])
+        current_static = current_data.get("static_answers", {})
+    except Exception:
+        current_static = st.session_state.static_answers
+    
+    matches = []
+    for idx, row in df.iterrows():
+        if row["user_id"] == st.session_state.user_id:
+            continue
+        try:
+            other_data = json.loads(row["data"])
+            other_static = other_data.get("static_answers", {})
+        except Exception:
+            continue
+        comp = compute_compatibility(current_static, other_static)
+        matches.append({
+            "user_id": row["user_id"],
+            "compatibility": comp,
+            "interaction_choice": other_static.get("interaction_choice", "non défini")
+        })
+    
+    if not matches:
+        st.info("Aucun autre profil n'a encore répondu.")
+        return
+    
+    match = max(matches, key=lambda x: x["compatibility"])
+    
+    st.write(f"**Match trouvé : {match['user_id']}**")
+    st.write(f"**Compatibilité : {match['compatibility']}%**")
+    st.write(f"**Votre choix d'interaction :** {st.session_state.static_answers.get('interaction_choice', 'non défini')}")
+    st.write(f"**Le choix de {match['user_id']} :** {match['interaction_choice']}")
+    
+    if st.session_state.static_answers.get("interaction_choice") == match["interaction_choice"]:
+        st.success(f"Vous êtes appariés pour {match['interaction_choice']} !")
+        st.write("Une interaction (chat, appel ou rencontre) va s'ouvrir.")
+    else:
+        st.info("Votre mode d'interaction n'est pas encore apparié avec votre match. Réessayez plus tard.")
+
+# =============================================================================
+# 6. ROUTAGE PRINCIPAL DE L'APPLICATION
+# =============================================================================
+if st.session_state.page == "login":
+    page_login()
+elif st.session_state.page == "static":
+    page_static()
+elif st.session_state.page == "chatbot":
+    page_chatbot()
+elif st.session_state.page == "result":
+    page_result()
+elif st.session_state.page == "matching":
+    page_matching()
