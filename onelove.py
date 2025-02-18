@@ -213,12 +213,13 @@ def page_values():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "valeur_element_plus_important": q_values_1,
             "valeur_compromis": q_values_2,
             "valeur_relation_type": q_values_3
         })
         go_to_page("attachment")
+
 
 # ------------------------------------------------------------------------
 # 2) Style d'attachement et gestion des émotions
