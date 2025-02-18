@@ -191,45 +191,205 @@ def page_personal():
             "age": age,
             "location": location
         })
-        go_to_page("psych")
+        go_to_page("values")
 
-# PAGE 3 : Questionnaire psychologique
-def page_psych():
-    st.title("Questionnaire psychologique")
-    # Utilisez un formulaire pour regrouper toutes les questions.
-    with st.form(key="psych_form", clear_on_submit=False):
-        orientation = st.radio(
-            "Quelle est votre orientation sexuelle ?",
-            ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"]
+# PAGE 3 : Questionnaire valeurs
+def page_values():
+    st.title("1️⃣ Valeurs et principes fondamentaux")
+    with st.form(key="values_form"):
+        q_values_1 = st.radio(
+            "Quel est l’élément le plus important pour toi dans une relation ?",
+            ["Confiance", "Loyauté", "Indépendance", "Complicité", "Passion"]
         )
-        engagement = st.slider(
-            "À quel point cherchez-vous une relation sérieuse ? (1 à 10)",
-            1, 10, 5
+        q_values_2 = st.slider(
+            "Jusqu’à quel point es-tu prêt(e) à faire des compromis dans une relation ?",
+            1, 10, 5,
+            help="1 = Je ne fais aucun compromis, 10 = Je suis très flexible"
         )
-        is_smoker = st.radio("Fumez-vous ?", ["Oui", "Non"])
-        wants_children = st.radio("Souhaitez-vous avoir des enfants ?", ["Oui", "Non"])
-        lifestyle = st.selectbox(
-            "Comment décririez-vous votre rythme de vie ?",
-            ["Casanier", "Actif", "Fêtard", "Équilibré"]
+        q_values_3 = st.radio(
+            "Préférerais-tu une relation où :",
+            ["Chacun garde ses activités et amis séparés", "On partage tout ensemble", "Un mélange des deux"]
         )
-        couple_values = st.multiselect(
-            "Quelles sont vos valeurs en couple ?",
-            ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"]
-        )
-        ideal_day = st.text_input("Décrivez brièvement votre journée idéale")
-        
-        # Le formulaire ne se soumettra que lorsque l'utilisateur cliquera sur "Suivant"
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.static_answers.update({
-            "orientation": orientation,
-            "engagement": engagement,
-            "is_smoker": is_smoker,
-            "wants_children": wants_children,
-            "lifestyle": lifestyle,
-            "couple_values": couple_values,
-            "ideal_day": ideal_day
+        st.session_state.answers.update({
+            "valeur_element_plus_important": q_values_1,
+            "valeur_compromis": q_values_2,
+            "valeur_relation_type": q_values_3
+        })
+        go_to_page("attachment")
+
+# ------------------------------------------------------------------------
+# 2) Style d'attachement et gestion des émotions
+# ------------------------------------------------------------------------
+def page_attachment():
+    st.title("2️⃣ Style d'attachement et gestion des émotions")
+    with st.form(key="attachment_form"):
+        q_attach_1 = st.slider(
+            "Es-tu plutôt indépendant(e) ou en demande d’attention ?",
+            1, 10, 5,
+            help="1 = Très indépendant(e), 10 = Besoin constant d’attention"
+        )
+        q_attach_2 = st.radio(
+            "Que fais-tu quand ton/ta partenaire prend de la distance émotionnelle ?",
+            ["Je respecte son espace", "Je vais lui parler immédiatement", "J’angoisse et j’ai besoin d’être rassuré(e)"]
+        )
+        q_attach_3 = st.radio(
+            "Comment réagis-tu face à une dispute de couple ?",
+            ["Je fuis et évite le conflit", "J’essaie de résoudre immédiatement", "Je prends du recul avant d’en parler"]
+        )
+        submitted = st.form_submit_button("Suivant")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "attach_independance": q_attach_1,
+            "attach_distance": q_attach_2,
+            "attach_dispute": q_attach_3
+        })
+        go_to_page("communication")
+
+# ------------------------------------------------------------------------
+# 3) Modes de communication et compatibilité relationnelle
+# ------------------------------------------------------------------------
+def page_communication():
+    st.title("3️⃣ Modes de communication et compatibilité relationnelle")
+    with st.form(key="communication_form"):
+        q_comm_1 = st.slider(
+            "Quelle importance accordes-tu aux messages et appels dans une relation ?",
+            1, 10, 5,
+            help="1 = Peu important, 10 = Essentiel, j’ai besoin d’échanges quotidiens"
+        )
+        q_comm_2 = st.multiselect(
+            "Quel est ton langage amoureux principal ? (plusieurs choix possibles)",
+            ["Les mots et compliments", "Le contact physique", "Les petites attentions et cadeaux", 
+             "Le temps de qualité passé ensemble", "Les services rendus"]
+        )
+        q_comm_3 = st.radio(
+            "Si ton/ta partenaire a une mauvaise journée, que fais-tu ?",
+            ["J’écoute et je lui parle", "J’essaie de lui changer les idées", "Je lui laisse de l’espace"]
+        )
+        submitted = st.form_submit_button("Suivant")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "comm_importance": q_comm_1,
+            "comm_langage_amoureux": q_comm_2,
+            "comm_partenaire_mauvaise_journee": q_comm_3
+        })
+        go_to_page("lifestyle")
+
+# ------------------------------------------------------------------------
+# 4) Style de vie et rythme quotidien
+# ------------------------------------------------------------------------
+def page_lifestyle():
+    st.title("4️⃣ Style de vie et rythme quotidien")
+    with st.form(key="lifestyle_form"):
+        q_life_1 = st.radio(
+            "Tu es plutôt :",
+            ["🌅 Du matin", "🌙 Du soir", "🔄 Ça dépend"]
+        )
+        q_life_2 = st.slider(
+            "Quel est ton niveau d’énergie au quotidien ?",
+            1, 10, 5,
+            help="1 = Très calme, besoin de repos / 10 = Hyperactif(ve), toujours en mouvement"
+        )
+        q_life_3 = st.radio(
+            "À quel point es-tu organisé(e) ?",
+            ["Très structuré(e), je planifie tout", "Un bon équilibre entre planification et spontanéité", 
+             "Plutôt spontané(e), je laisse les choses venir"]
+        )
+        submitted = st.form_submit_button("Suivant")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "lifestyle_matin_ou_soir": q_life_1,
+            "lifestyle_energie": q_life_2,
+            "lifestyle_organisation": q_life_3
+        })
+        go_to_page("sociability")
+
+# ------------------------------------------------------------------------
+# 5) Relation aux autres et sociabilité
+# ------------------------------------------------------------------------
+def page_sociability():
+    st.title("5️⃣ Relation aux autres et sociabilité")
+    with st.form(key="sociability_form"):
+        q_soc_1 = st.radio(
+            "Es-tu plutôt :",
+            ["🗣️ Extraverti(e)", "🤔 Introverti(e)", "⚖️ Ambiverti(e)"]
+        )
+        q_soc_2 = st.slider(
+            "Quelle importance accordes-tu aux amis dans ta vie ?",
+            1, 10, 5,
+            help="1 = Peu important / 10 = Essentiel, mes amis sont ma famille"
+        )
+        submitted = st.form_submit_button("Suivant")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "soc_extraverti_intro": q_soc_1,
+            "soc_importance_amis": q_soc_2
+        })
+        go_to_page("vision")
+
+# ------------------------------------------------------------------------
+# 6) Vision du couple et projets à long terme
+# ------------------------------------------------------------------------
+def page_vision():
+    st.title("6️⃣ Vision du couple et projets à long terme")
+    with st.form(key="vision_form"):
+        q_vis_1 = st.radio(
+            "Que signifie l’engagement pour toi ?",
+            ["Une union officielle (mariage, pacs)", "Un engagement mutuel sans obligation formelle", 
+             "Une vision plus libre de la relation"]
+        )
+        q_vis_2 = st.slider(
+            "Veux-tu des enfants ?",
+            1, 10, 5,
+            help="1 = Pas du tout / 10 = Oui, absolument"
+        )
+        q_vis_3 = st.radio(
+            "Serais-tu prêt(e) à une relation à distance temporaire ?",
+            ["Oui, si c’est temporaire", "Non, j’ai besoin de proximité", "Ça dépend de la situation"]
+        )
+        submitted = st.form_submit_button("Suivant")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "vision_engagement": q_vis_1,
+            "vision_enfants": q_vis_2,
+            "vision_distance": q_vis_3
+        })
+        go_to_page("experience")
+
+# ------------------------------------------------------------------------
+# 7) Expériences relationnelles et passé amoureux
+# ------------------------------------------------------------------------
+def page_experience():
+    st.title("7️⃣ Expériences relationnelles et passé amoureux")
+    with st.form(key="experience_form"):
+        q_exp_1 = st.radio(
+            "As-tu déjà vécu une relation longue durée ?",
+            ["Oui, plus de 3 ans", "Oui, entre 1 et 3 ans", "Non, jamais eu de relation longue"]
+        )
+        q_exp_2 = st.slider(
+            "As-tu déjà vécu une cohabitation avec un(e) partenaire ?",
+            1, 10, 5,
+            help="1 = Jamais / 10 = Oui, plusieurs fois"
+        )
+        q_exp_3 = st.multiselect(
+            "Quelle est la plus grande leçon que tu as tirée de tes relations passées ?",
+            ["L’importance de la communication", "Le respect des besoins de chacun", 
+             "Éviter les relations toxiques", "Trouver quelqu’un qui partage mes valeurs"]
+        )
+        submitted = st.form_submit_button("Terminer")
+    
+    if submitted:
+        st.session_state.answers.update({
+            "exp_relation_longue": q_exp_1,
+            "exp_cohabitation": q_exp_2,
+            "exp_lecon_relation": q_exp_3
         })
         go_to_page("chatbot")
 
@@ -435,14 +595,27 @@ def main():
         page_login()
     elif st.session_state.page == "personal":
         page_personal()
-    elif st.session_state.page == "psych":
-        page_psych()
+    elif st.session_state.page == "values":
+        page_values()
+    elif st.session_state.page == "attachment":
+        page_attachment()
+    elif st.session_state.page == "communication":
+        page_communication()
+    elif st.session_state.page == "lifestyle":
+        page_lifestyle()
+    elif st.session_state.page == "sociability":
+        page_sociability()
+    elif st.session_state.page == "vision":
+        page_vision()
+    elif st.session_state.page == "experience":
+        page_experience()
     elif st.session_state.page == "chatbot":
         page_chatbot()
     elif st.session_state.page == "result":
         page_result()
     elif st.session_state.page == "matching":
         page_matching()
+
 
 if __name__ == "__main__":
     main()
