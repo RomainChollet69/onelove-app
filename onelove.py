@@ -1,15 +1,4 @@
 import streamlit as st
-
-st.set_page_config(page_title="OneLove – Matchmaking IA", layout="centered")
-
-def main():
-    st.title("Bienvenue sur OneLove IA")
-    st.image("OneLove_IA.png", width=200)  # Logo
-    st.write("Ceci est un exemple de page Streamlit avec un logo.")
-
-if __name__ == "__main__":
-    main()
-
 import json
 import pandas as pd
 import datetime
@@ -17,10 +6,22 @@ from oauth2client.service_account import ServiceAccountCredentials
 import gspread
 import openai
 
+
+
 # =============================================================================
 # 1. CONFIGURATION DES SECRETS & API
 # =============================================================================
+# Placer set_page_config ici, tout en haut, avant le moindre st.* (comme st.image, st.title, etc.)
 st.set_page_config(page_title="OneLove – Matchmaking IA", layout="centered")
+
+def main():
+    st.title("Bienvenue sur OneLove IA")
+    st.image("OneLove_IA.png", width=200)  # Logo
+    # ... puis votre code
+
+if __name__ == "__main__":
+    main()
+
 
 if "openai" in st.secrets and "api_key" in st.secrets["openai"]:
     st.success("✅ Clé API OpenAI chargée avec succès !")
