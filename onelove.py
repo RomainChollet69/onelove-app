@@ -243,7 +243,7 @@ def page_attachment():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "attach_independance": q_attach_1,
             "attach_distance": q_attach_2,
             "attach_dispute": q_attach_3
@@ -273,7 +273,7 @@ def page_communication():
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
-        st.session_state.answers.update({
+        st.session_state.static_answers.update({
             "comm_importance": q_comm_1,
             "comm_langage_amoureux": q_comm_2,
             "comm_partenaire_mauvaise_journee": q_comm_3
