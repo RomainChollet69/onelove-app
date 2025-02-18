@@ -89,7 +89,7 @@ if "feedback" not in st.session_state:
 if "likes" not in st.session_state:
     st.session_state.likes = {}
 if "chat_input" not in st.session_state:
-    st.session_state.chat_input = ""  # Pour stocker la saisie du chatbot
+    st.session_state["chat_input"] = ""  # Initialisation de la saisie
 
 def go_to_page(page_name):
     st.session_state.page = page_name
@@ -132,9 +132,8 @@ def page_basics():
 def page_chatbot():
     st.title("Chatbot – Questions complémentaires (max 3)")
     
-    # Si la conversation est vide, on initialise
+    # Initialiser la conversation si vide
     if not st.session_state.chat_history:
-        # Prompt système
         st.session_state.chat_history.append({
             "role": "system",
             "content": (
@@ -142,7 +141,6 @@ def page_chatbot():
                 "puis termine par 'FIN DE QUESTIONNAIRE'."
             )
         })
-        # Premier message assistant
         st.session_state.chat_history.append({
             "role": "assistant",
             "content": "Salut ! Peux-tu décrire en quelques mots ce que tu recherches en amour ?"
@@ -163,37 +161,33 @@ def page_chatbot():
             go_to_page("result")
         return
     
-    # Champ texte pour la réponse
+    # Saisie de la réponse utilisateur
     user_msg = st.text_input("Votre réponse :", key="chat_input")
     
-    # Bouton d'envoi
     if st.button("Envoyer"):
-        # Vérifier si le champ n'est pas vide
-        if st.session_state.chat_input.strip():
-            # On ajoute la réponse utilisateur
+        if st.session_state["chat_input"].strip():
+            # Ajouter la réponse de l'utilisateur
             st.session_state.chat_history.append({
                 "role": "user",
-                "content": st.session_state.chat_input.strip()
+                "content": st.session_state["chat_input"].strip()
             })
             
-            # Détecter si le chatbot vient de poser une question
-            # On considère qu'une question est posée s'il y a un "?"
+            # Incrémenter le compteur de questions si la dernière question de l'assistant contenait un "?"
             last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
             if "?" in last_assistant_msg:
                 st.session_state.question_count += 1
             
-            # Si on a atteint 3 questions, on force la fin
+            # Si 3 questions ont été posées, forcer la fin
             if st.session_state.question_count >= 3:
                 st.session_state.chat_history.append({
                     "role": "assistant",
                     "content": "FIN DE QUESTIONNAIRE"
                 })
-                # On vide le champ
-                st.session_state.chat_input = ""
-                st.stop()  # Arrêt pour recharger la page
+                st.session_state["chat_input"] = ""
+                st.stop()  # Arrête pour recharger la page
                 return
             
-            # Sinon, on appelle l'API pour la prochaine question
+            # Appeler l'API pour obtenir la prochaine question
             with st.spinner("Le chatbot réfléchit..."):
                 response = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo",
@@ -207,11 +201,11 @@ def page_chatbot():
                 "content": assistant_text
             })
             
-            # On vide le champ
-            st.session_state.chat_input = ""
-            st.stop()  # Forcer Streamlit à recharger la page
+            # Vider le champ de saisie
+            st.session_state["chat_input"] = ""
+            st.stop()  # Forcer le rechargement de la page
     
-    # Bouton pour forcer la fin si besoin
+    # Bouton pour forcer la fin du questionnaire
     if st.button("Terminer maintenant"):
         st.session_state.chat_history.append({
             "role": "assistant",
@@ -224,12 +218,11 @@ def page_result():
     st.title("Analyse du questionnaire – Résultats")
     st.write("Nous analysons vos réponses pour générer un feedback.")
     
-    # Préparer un résumé de toutes les infos
+    # Préparer un résumé des réponses
     static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_info = "\n".join([
         f"{msg['role'].upper()} : {msg['content']}" 
-        for msg in st.session_state.chat_history 
-        if msg["role"] != "system"
+        for msg in st.session_state.chat_history if msg["role"] != "system"
     ])
     full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
     
@@ -251,8 +244,7 @@ def page_result():
                 max_tokens=300
             )
             analysis_text = resp.choices[0].message["content"].strip()
-            
-            # On parse le JSON retourné
+            # Parser le JSON retourné
             result_json = json.loads(analysis_text)
             st.session_state.score = result_json.get("score", 0)
             st.session_state.feedback = result_json.get("feedback", "")
@@ -261,11 +253,10 @@ def page_result():
             st.session_state.score = 0
             st.session_state.feedback = "Impossible de générer un feedback."
     
-    # Affichage du score et feedback
     st.subheader(f"Score : {st.session_state.score}/100")
     st.write(f"**Feedback :** {st.session_state.feedback}")
     
-    # Enregistrement dans Google Sheets
+    # Enregistrer dans Google Sheets
     store_data_to_sheet(
         st.session_state.user_id,
         {
@@ -322,7 +313,7 @@ def page_matching():
                 st.markdown("---")
     
     if st.button("Refaire le questionnaire"):
-        # Reset session
+        # Réinitialisation de la session
         st.session_state.page = "login"
         st.session_state.user_id = None
         st.session_state.static_answers = {}
@@ -331,7 +322,7 @@ def page_matching():
         st.session_state.score = None
         st.session_state.feedback = ""
         st.session_state.likes = {}
-        st.session_state.chat_input = ""
+        st.session_state["chat_input"] = ""
 
 # =============================================================================
 # 6. ROUTAGE PRINCIPAL
