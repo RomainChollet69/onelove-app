@@ -43,7 +43,7 @@ def get_chatbot_response(conversation):
             model="gpt-3.5-turbo",
             messages=conversation,
             temperature=0.7,
-            max_tokens=300  # Suffisant pour de courtes réponses
+            max_tokens=300
         )
         return response.choices[0].message["content"].strip()
     except openai.OpenAIError as e:
@@ -88,6 +88,8 @@ if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "likes" not in st.session_state:
     st.session_state.likes = {}
+if "chat_input" not in st.session_state:
+    st.session_state.chat_input = ""  # Pour stocker la saisie du chatbot
 
 def go_to_page(page_name):
     st.session_state.page = page_name
@@ -161,10 +163,53 @@ def page_chatbot():
             go_to_page("result")
         return
     
-    # Formulaire de saisie
-    with st.form(key="chat_form", clear_on_submit=True):
-        user_msg = st.text_input("Votre réponse :")
-        submit = st.form_submit_button("Envoyer")
+    # Champ texte pour la réponse
+    user_msg = st.text_input("Votre réponse :", key="chat_input")
+    
+    # Bouton d'envoi
+    if st.button("Envoyer"):
+        # Vérifier si le champ n'est pas vide
+        if st.session_state.chat_input.strip():
+            # On ajoute la réponse utilisateur
+            st.session_state.chat_history.append({
+                "role": "user",
+                "content": st.session_state.chat_input.strip()
+            })
+            
+            # Détecter si le chatbot vient de poser une question
+            # On considère qu'une question est posée s'il y a un "?"
+            last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
+            if "?" in last_assistant_msg:
+                st.session_state.question_count += 1
+            
+            # Si on a atteint 3 questions, on force la fin
+            if st.session_state.question_count >= 3:
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": "FIN DE QUESTIONNAIRE"
+                })
+                # On vide le champ
+                st.session_state.chat_input = ""
+                st.stop()  # Arrêt pour recharger la page
+                return
+            
+            # Sinon, on appelle l'API pour la prochaine question
+            with st.spinner("Le chatbot réfléchit..."):
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=st.session_state.chat_history,
+                    temperature=0.7,
+                    max_tokens=300
+                )
+            assistant_text = response.choices[0].message["content"].strip()
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": assistant_text
+            })
+            
+            # On vide le champ
+            st.session_state.chat_input = ""
+            st.stop()  # Forcer Streamlit à recharger la page
     
     # Bouton pour forcer la fin si besoin
     if st.button("Terminer maintenant"):
@@ -172,44 +217,7 @@ def page_chatbot():
             "role": "assistant",
             "content": "FIN DE QUESTIONNAIRE"
         })
-        st.experimental_rerun()
-        return
-    
-    if submit and user_msg.strip():
-        # On ajoute la réponse utilisateur
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_msg.strip()
-        })
-        
-        # Vérifier le nombre de questions déjà posées
-        # On considère qu'une question est posée par l'assistant s'il y a un "?"
-        last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
-        if "?" in last_assistant_msg:
-            st.session_state.question_count += 1
-        
-        # Si on a atteint 3 questions, on force la fin
-        if st.session_state.question_count >= 3:
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": "FIN DE QUESTIONNAIRE"
-            })
-            st.experimental_rerun()
-            return
-        
-        # Sinon, on appelle l'API pour la prochaine question
-        with st.spinner("Le chatbot réfléchit..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=st.session_state.chat_history,
-                temperature=0.7,
-                max_tokens=300
-            )
-        assistant_text = response.choices[0].message["content"].strip()
-        st.session_state.chat_history.append({
-            "role": "assistant",
-            "content": assistant_text
-        })
+        st.stop()
 
 # ----- PAGE 4 : Analyse et résultats -----
 def page_result():
@@ -218,8 +226,11 @@ def page_result():
     
     # Préparer un résumé de toutes les infos
     static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
-    chat_info = "\n".join([f"{msg['role'].upper()} : {msg['content']}" 
-                           for msg in st.session_state.chat_history if msg["role"] != "system"])
+    chat_info = "\n".join([
+        f"{msg['role'].upper()} : {msg['content']}" 
+        for msg in st.session_state.chat_history 
+        if msg["role"] != "system"
+    ])
     full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
     
     analysis_prompt = (
@@ -307,7 +318,7 @@ def page_matching():
                 with col2:
                     if st.button(f"👎 Dislike - {row['user_id']}", key=f"dislike_{idx}"):
                         st.session_state.likes[row['user_id']] = "dislike"
-                        st.warning(f"Vous n'avez pas aimé {row['user_id']}.")
+                        st.warning(f"Vous n'aimez pas {row['user_id']}.")
                 st.markdown("---")
     
     if st.button("Refaire le questionnaire"):
@@ -320,6 +331,7 @@ def page_matching():
         st.session_state.score = None
         st.session_state.feedback = ""
         st.session_state.likes = {}
+        st.session_state.chat_input = ""
 
 # =============================================================================
 # 6. ROUTAGE PRINCIPAL
