@@ -323,12 +323,10 @@ def page_result():
 # PAGE 6 : Matching
 def partner_allowed(user_static, other_static):
     """
-    Détermine si le profil 'other_static' est admissible en fonction de l'orientation sexuelle
-    et du genre de l'utilisateur.
-    
-    - Pour un(e) hétérosexuel(le) : le partenaire doit être de genre opposé.
-    - Pour un(e) homosexuel(le) : le partenaire doit être du même genre.
-    - Pour un(e) bisexuel(le) ou pansexuel(le) ou "Autre" : tous les genres sont acceptés.
+    Détermine si le profil 'other_static' est admissible en fonction de l'orientation sexuelle et du genre de l'utilisateur.
+    - Pour un(e) hétérosexuel(le): le partenaire doit être de genre opposé.
+    - Pour un(e) homosexuel(le): le partenaire doit être du même genre.
+    - Pour bisexuel(le), pansexuel(le) ou Autre: tous les genres sont acceptés.
     """
     orientation = user_static.get("orientation", "").lower()
     user_gender = user_static.get("gender", "").lower()
@@ -341,7 +339,6 @@ def partner_allowed(user_static, other_static):
     elif orientation in ["bisexuel(le)", "pansexuel(le)"]:
         return True
     else:
-        # Pour "Autre", on autorise tous
         return True
 
 def page_matching():
@@ -375,7 +372,6 @@ def page_matching():
     
     best_match = None
     best_score = 0
-    # Parcourir tous les autres profils
     for idx, row in df.iterrows():
         if row["user_id"] == st.session_state.user_id:
             continue
@@ -384,7 +380,7 @@ def page_matching():
             other_static = other_data.get("static_answers", {})
         except Exception:
             continue
-        # Filtrer par genre en fonction de l'orientation
+        # Filtrer par orientation/gender
         if not partner_allowed(current_static, other_static):
             continue
         comp = compute_compatibility(current_static, other_static)
@@ -393,17 +389,20 @@ def page_matching():
             best_match = row["user_id"]
     
     if not best_match:
-        st.info("Aucun autre profil n’a été trouvé qui corresponde à vos critères.")
+        st.info("Aucun autre profil n’a été trouvé.")
         return
 
     if best_score >= 60:
-        # Affichage du mode de communication uniquement si un match compatible est trouvé.
+        # Affichage du message de match sans mode de communication
+        st.header(f"Bravo, tu as matché avec {best_match} à hauteur de {best_score}% !")
+        st.write("Maintenant à toi de choisir comment tu souhaites rentrer en contact avec ton match :")
         user_mode = st.radio(
-            "Comment souhaitez-vous entrer en communication avec votre match ?",
+            "",
             ["discuter par chat", "par téléphone", "se rencontrer directement"]
         )
         st.session_state.static_answers["interaction_choice"] = user_mode
-        st.success(f"Bravo ! Vous êtes compatible avec **{best_match}** à hauteur de **{best_score}%** pour {user_mode}.")
+        if user_mode:
+            st.success(f"Votre mode de communication sélectionné est : {user_mode}.")
     else:
         st.info(f"Aucun profil n’a une compatibilité >= 60%. Le meilleur match est {best_match} à {best_score}%.")
 
