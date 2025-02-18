@@ -116,6 +116,8 @@ def compute_compatibility(user_static, other_static):
 
 def go_to_page(page_name):
     st.session_state.page = page_name
+    st.rerun()  # Force Streamlit à recharger immédiatement après le changement de page
+
 
 # =============================================================================
 # 4. INITIALISATION DE LA SESSION
