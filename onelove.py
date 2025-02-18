@@ -12,12 +12,18 @@ import openai
 # 1. CONFIGURATION DES SECRETS & API
 # =============================================================================
 # Placer set_page_config ici, tout en haut, avant le moindre st.* (comme st.image, st.title, etc.)
+
 st.set_page_config(page_title="OneLove – Matchmaking IA", layout="centered")
 
 def main():
     st.title("Bienvenue sur OneLove IA")
-    st.image("OneLove_IA.png", width=200)  # Logo
-    # ... puis votre code
+
+    # Création de 3 colonnes : la colonne du milieu sera plus large
+    col1, col2, col3 = st.columns([1,3,1])
+    
+    # On place l'image dans la colonne du milieu
+    with col2:
+        st.image("OneLove_IA.png", width=300)  # Ajustez la width pour agrandir/réduire l'image
 
 if __name__ == "__main__":
     main()
