@@ -25,7 +25,7 @@ service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, SCOPES)
 client = gspread.authorize(creds)
 
-# Remplacez par l'ID de votre Google Sheet (Assurez-vous que la première ligne contient : user_id, timestamp, data, score, feedback)
+# Remplacez par l'ID de votre Google Sheet (la première ligne doit contenir : user_id, timestamp, data, score, feedback)
 SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
 sheet = client.open_by_key(SHEET_KEY).sheet1
 
@@ -71,11 +71,10 @@ def get_all_data_as_df():
 def compute_compatibility(user_static, other_static):
     """
     Calcule un pourcentage de compatibilité entre deux utilisateurs à partir des réponses statiques.
-    On utilise ici un algorithme simple qui :
-      - Ajoute 40 points si l'orientation est identique.
-      - Ajoute 20 points si le genre est identique.
-      - Ajoute jusqu'à 40 points selon la proximité de la valeur "engagement" (écart max = 9).
-    Le score total est ensuite arrondi et sur 100.
+    - +40 points si l'orientation est identique.
+    - +20 points si le genre est identique.
+    - Jusqu'à +40 points selon la proximité de la valeur "engagement" (écart maximum = 9).
+    Le score total est arrondi sur 100.
     """
     score = 0
     if user_static.get("orientation") == other_static.get("orientation"):
@@ -105,14 +104,13 @@ if "static_answers" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "question_count" not in st.session_state:
-    st.session_state.question_count = 0  # Limiter le chatbot à 3 questions
+    st.session_state.question_count = 0  # Pour limiter le chatbot à 3 questions
 if "score" not in st.session_state:
     st.session_state.score = None
 if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "chat_input" not in st.session_state:
     st.session_state["chat_input"] = ""
-# Pour stocker l'interaction choisie par l'utilisateur (résultat)
 if "interaction_choice" not in st.session_state:
     st.session_state.interaction_choice = None
 
@@ -134,7 +132,7 @@ def page_login():
             st.session_state.user_id = user_input.strip()
             go_to_page("basics")
 
-# ----- PAGE 2 : Questions de base (version très courte) -----
+# ----- PAGE 2 : Questions de base (très courte version de test) -----
 def page_basics():
     st.title("Questions de base")
     orientation = st.radio("Quelle est ton orientation sexuelle ?",
@@ -149,7 +147,7 @@ def page_basics():
         st.session_state.static_answers["engagement"] = engagement
         go_to_page("chatbot")
 
-# ----- PAGE 3 : Chatbot (max 3 questions) -----
+# ----- PAGE 3 : Chatbot (maximum 3 questions) -----
 def page_chatbot():
     st.title("Chatbot – Questions complémentaires")
     # Initialiser la conversation si vide
@@ -164,14 +162,14 @@ def page_chatbot():
             "content": "Salut ! Peux-tu décrire en quelques mots ce que tu recherches en amour ?"
         })
     
-    # Affichage de la conversation (sauf le message system)
+    # Affichage de la conversation (en ignorant le message système)
     for msg in st.session_state.chat_history[1:]:
         if msg["role"] == "assistant":
             st.markdown(f"**Chatbot :** {msg['content']}")
         else:
             st.markdown(f"**Vous :** {msg['content']}")
     
-    # Vérifier si le chatbot a terminé
+    # Si le chatbot a terminé, proposer d'accéder aux résultats
     if (st.session_state.chat_history[-1]["role"] == "assistant" and 
         "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"].upper()):
         st.success("Le questionnaire est terminé !")
@@ -179,7 +177,7 @@ def page_chatbot():
             go_to_page("result")
         return
     
-    # Saisie de la réponse utilisateur (pas de formulaire pour éviter le double-clic)
+    # Saisie de la réponse utilisateur (sans formulaire pour éviter le double-clic)
     user_msg = st.text_input("Votre réponse :", key="chat_input")
     
     if st.button("Envoyer"):
@@ -188,18 +186,17 @@ def page_chatbot():
                 "role": "user",
                 "content": st.session_state["chat_input"].strip()
             })
-            # Incrémenter le compteur si la dernière question posée par l'assistant contient un "?"
+            # Incrémenter le compteur si la dernière question de l'assistant contient "?"
             last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
             if "?" in last_assistant_msg:
                 st.session_state.question_count += 1
-            # Si 3 questions ont été posées, forcer la fin
+            # Si 3 questions ont été posées, forcer la fin du questionnaire
             if st.session_state.question_count >= 3:
                 st.session_state.chat_history.append({
                     "role": "assistant",
                     "content": "FIN DE QUESTIONNAIRE"
                 })
                 st.session_state["chat_input"] = ""
-                st.stop()
                 return
             # Sinon, obtenir la prochaine question via OpenAI
             with st.spinner("Le chatbot réfléchit..."):
@@ -215,21 +212,21 @@ def page_chatbot():
                 "content": assistant_text
             })
             st.session_state["chat_input"] = ""
-            st.stop()
+            return
     
     if st.button("Terminer maintenant"):
         st.session_state.chat_history.append({
             "role": "assistant",
             "content": "FIN DE QUESTIONNAIRE"
         })
-        st.stop()
+        return
 
 # ----- PAGE 4 : Analyse et résultats -----
 def page_result():
     st.title("Résultats du questionnaire")
     st.write("Analyse de vos réponses pour générer un profil et calculer votre compatibilité.")
     
-    # Ajouter le choix de l'interaction (discuter, s'appeler, se rencontrer)
+    # Choix de l'interaction souhaitée
     interaction_choice = st.radio("Choisissez comment vous souhaitez interagir avec votre match :", 
                                   ["discuter", "s'appeler", "se rencontrer"])
     st.session_state.static_answers["interaction_choice"] = interaction_choice
@@ -241,8 +238,8 @@ def page_result():
     full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
     
     analysis_prompt = (
-        "Analyse les informations suivantes pour dresser un profil rapide de l'utilisateur et attribuer un pourcentage de compatibilité sur 100, ainsi qu'un court feedback. "
-        "Réponds sous forme JSON : {\"score\": XX, \"feedback\": \"...\"}.\n\n" +
+        "Analyse les informations suivantes pour dresser un profil rapide de l'utilisateur et attribuer un pourcentage de compatibilité sur 100, "
+        "ainsi qu'un court feedback. Réponds sous forme JSON : {\"score\": XX, \"feedback\": \"...\"}.\n\n" +
         full_text
     )
     
@@ -285,7 +282,6 @@ def page_matching():
     st.title("Mes matchs")
     st.write("Voici votre match (juste un prénom et le pourcentage de compatibilité).")
     
-    # Charger tous les profils enregistrés
     df = get_all_data_as_df()
     if df.empty:
         st.info("Aucun profil enregistré pour le moment.")
@@ -298,11 +294,11 @@ def page_matching():
     except Exception:
         current_static = st.session_state.static_answers
     
-    # On parcourt tous les autres profils et on calcule leur compatibilité
+    # Calculer la compatibilité avec les autres profils
     matches = []
     for idx, row in df.iterrows():
         if row["user_id"] == st.session_state.user_id:
-            continue  # Ne pas comparer avec soi-même
+            continue
         try:
             other_data = json.loads(row["data"])
             other_static = other_data.get("static_answers", {})
@@ -319,7 +315,7 @@ def page_matching():
         st.info("Aucun autre profil n'a encore répondu.")
         return
     
-    # Pour le test, on ne présente qu'un seul match (celui avec le meilleur score)
+    # Pour la phase test, on affiche le match avec la meilleure compatibilité
     match = max(matches, key=lambda x: x["compatibility"])
     
     st.write(f"**Match trouvé : {match['user_id']}**")
