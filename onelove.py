@@ -43,7 +43,7 @@ def get_chatbot_response(conversation):
             model="gpt-3.5-turbo",
             messages=conversation,
             temperature=0.7,
-            max_tokens=300
+            max_tokens=300  # Suffisant pour de courtes réponses
         )
         return response.choices[0].message["content"].strip()
     except openai.OpenAIError as e:
@@ -52,8 +52,8 @@ def get_chatbot_response(conversation):
 
 def store_data_to_sheet(user_id, data_dict, score, feedback):
     """
-    Stocke les données (réponses QCM + conversation) dans Google Sheets, avec horodatage.
-    Colonnes : user_id, timestamp, data (JSON), score, feedback.
+    Stocke les réponses (data_dict), le score et le feedback dans Google Sheets, avec horodatage.
+    Colonnes : user_id | timestamp | data (JSON) | score | feedback
     """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data_str = json.dumps(data_dict, ensure_ascii=False)
@@ -76,12 +76,12 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 if "user_id" not in st.session_state:
     st.session_state.user_id = None
-if "basic_answers" not in st.session_state:
-    st.session_state.basic_answers = {}
+if "static_answers" not in st.session_state:
+    st.session_state.static_answers = {}
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "question_count" not in st.session_state:
-    st.session_state.question_count = 0
+    st.session_state.question_count = 0  # Pour limiter à 3 questions
 if "score" not in st.session_state:
     st.session_state.score = None
 if "feedback" not in st.session_state:
@@ -98,8 +98,7 @@ def go_to_page(page_name):
 
 # ----- PAGE 1 : Login -----
 def page_login():
-    st.title("Bienvenue sur OneLove – Matchmaking IA (Version Test)")
-    st.write("Veuillez vous identifier pour commencer.")
+    st.title("Bienvenue sur OneLove – Matchmaking IA (Version Courte)")
     user_input = st.text_input("Entrez votre pseudo ou email :")
     if st.button("Commencer"):
         if not user_input.strip():
@@ -108,53 +107,53 @@ def page_login():
             st.session_state.user_id = user_input.strip()
             go_to_page("basics")
 
-# ----- PAGE 2 : Questions de base (QCM) -----
+# ----- PAGE 2 : Questions de base (très courtes) -----
 def page_basics():
     st.title("Questions de base (Version Courte)")
-    st.write("Veuillez répondre aux questions suivantes :")
     
     orientation = st.radio("Quelle est ton orientation sexuelle ?",
                            ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Autre"])
+    
     gender = st.radio("Quel est ton genre ?",
                       ["Homme", "Femme", "Autre"])
-    smoker = st.radio("Es-tu fumeur/fumeuse ?",
-                      ["Oui", "Non"])
+    
+    engagement = st.slider("À quel point cherches-tu une relation sérieuse ? (1 à 10)",
+                           1, 10, 5)
     
     if st.button("Suivant"):
-        st.session_state.basic_answers["orientation"] = orientation
-        st.session_state.basic_answers["gender"] = gender
-        st.session_state.basic_answers["smoker"] = smoker
+        st.session_state.static_answers["orientation"] = orientation
+        st.session_state.static_answers["gender"] = gender
+        st.session_state.static_answers["engagement"] = engagement
         go_to_page("chatbot")
 
-# ----- PAGE 3 : Chatbot (3 questions max) -----
+# ----- PAGE 3 : Chatbot (max 3 questions) -----
 def page_chatbot():
     st.title("Chatbot – Questions complémentaires (max 3)")
-    st.write("Le chatbot va te poser jusqu'à 3 questions supplémentaires.")
     
-    # Initialisation du chatbot si vide
+    # Si la conversation est vide, on initialise
     if not st.session_state.chat_history:
-        # Message système
+        # Prompt système
         st.session_state.chat_history.append({
             "role": "system",
             "content": (
-                "Tu es un chatbot de matchmaking. Pose au maximum 3 questions à l'utilisateur "
-                "pour approfondir son profil, puis termine en écrivant : 'FIN DE QUESTIONNAIRE'."
+                "Tu es un chatbot de matchmaking. Pose jusqu'à 3 questions complémentaires maximum, "
+                "puis termine par 'FIN DE QUESTIONNAIRE'."
             )
         })
         # Premier message assistant
         st.session_state.chat_history.append({
             "role": "assistant",
-            "content": "Bonjour ! Dis-moi ce que tu recherches le plus chez un partenaire ?"
+            "content": "Salut ! Peux-tu décrire en quelques mots ce que tu recherches en amour ?"
         })
     
-    # Afficher la conversation (sauf le message système)
+    # Affichage de la conversation (on saute le message system)
     for msg in st.session_state.chat_history[1:]:
         if msg["role"] == "assistant":
             st.markdown(f"**Chatbot :** {msg['content']}")
         else:
             st.markdown(f"**Vous :** {msg['content']}")
     
-    # Vérifier si la dernière réponse contient FIN DE QUESTIONNAIRE
+    # Vérifier si le chatbot a terminé
     if (st.session_state.chat_history[-1]["role"] == "assistant" and
         "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"].upper()):
         st.success("Le questionnaire est terminé !")
@@ -162,29 +161,31 @@ def page_chatbot():
             go_to_page("result")
         return
     
-    # Formulaire pour la réponse utilisateur
-    with st.form(key="chat_input_form", clear_on_submit=True):
-        user_message = st.text_input("Votre réponse :")
+    # Formulaire de saisie
+    with st.form(key="chat_form", clear_on_submit=True):
+        user_msg = st.text_input("Votre réponse :")
         submit = st.form_submit_button("Envoyer")
     
-    if submit and user_message.strip():
-        # Ajouter la réponse utilisateur
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_message.strip()
-        })
-        # Appeler OpenAI
-        with st.spinner("Le chatbot réfléchit..."):
-            assistant_response = get_chatbot_response(st.session_state.chat_history)
-        
-        # Ajouter la réponse du chatbot
+    # Bouton pour forcer la fin si besoin
+    if st.button("Terminer maintenant"):
         st.session_state.chat_history.append({
             "role": "assistant",
-            "content": assistant_response
+            "content": "FIN DE QUESTIONNAIRE"
+        })
+        st.experimental_rerun()
+        return
+    
+    if submit and user_msg.strip():
+        # On ajoute la réponse utilisateur
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_msg.strip()
         })
         
-        # Vérifier s'il y a un point d'interrogation => question
-        if "?" in assistant_response:
+        # Vérifier le nombre de questions déjà posées
+        # On considère qu'une question est posée par l'assistant s'il y a un "?"
+        last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
+        if "?" in last_assistant_msg:
             st.session_state.question_count += 1
         
         # Si on a atteint 3 questions, on force la fin
@@ -193,60 +194,73 @@ def page_chatbot():
                 "role": "assistant",
                 "content": "FIN DE QUESTIONNAIRE"
             })
+            st.experimental_rerun()
+            return
+        
+        # Sinon, on appelle l'API pour la prochaine question
+        with st.spinner("Le chatbot réfléchit..."):
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=st.session_state.chat_history,
+                temperature=0.7,
+                max_tokens=300
+            )
+        assistant_text = response.choices[0].message["content"].strip()
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": assistant_text
+        })
 
-# ----- PAGE 4 : Résultats -----
+# ----- PAGE 4 : Analyse et résultats -----
 def page_result():
     st.title("Analyse du questionnaire – Résultats")
-    st.write("Nous analysons tes réponses pour générer un feedback.")
+    st.write("Nous analysons vos réponses pour générer un feedback.")
     
-    # Préparation des données
-    basics_str = "\n".join([f"{k}: {v}" for k, v in st.session_state.basic_answers.items()])
-    conversation_str = "\n".join(
-        [f"{msg['role'].upper()} : {msg['content']}" for msg in st.session_state.chat_history if msg["role"] != "system"]
-    )
+    # Préparer un résumé de toutes les infos
+    static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
+    chat_info = "\n".join([f"{msg['role'].upper()} : {msg['content']}" 
+                           for msg in st.session_state.chat_history if msg["role"] != "system"])
+    full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
     
-    prompt_analysis = (
-        "Analyse les informations suivantes (QCM + conversation) pour dresser un profil rapide de l'utilisateur, "
-        "attribue un score de compatibilité sur 100 et donne un feedback. Réponds en JSON du type : "
-        "{\"score\": 75, \"feedback\": \"...\"}\n\n"
-        "Réponses QCM:\n" + basics_str + "\n\n"
-        "Conversation:\n" + conversation_str
+    analysis_prompt = (
+        "Analyse les informations suivantes pour dresser un profil rapide de l'utilisateur et attribuer un score "
+        "de compatibilité sur 100, plus un court feedback. Réponds sous forme JSON : {\"score\": XX, \"feedback\": \"...\"}.\n\n"
+        f"{full_text}"
     )
     
     with st.spinner("Analyse en cours..."):
         try:
-            response = openai.ChatCompletion.create(
+            resp = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "Tu es un expert en matchmaking. Analyse ce profil rapidement."},
-                    {"role": "user", "content": prompt_analysis}
+                    {"role": "system", "content": "Tu es un expert en matchmaking, donne un score et un feedback."},
+                    {"role": "user", "content": analysis_prompt}
                 ],
                 temperature=0.7,
                 max_tokens=300
             )
-            analysis_text = response.choices[0].message["content"].strip()
-            st.code(analysis_text, language="json")
-            # Tenter de parser le JSON
+            analysis_text = resp.choices[0].message["content"].strip()
+            
+            # On parse le JSON retourné
             result_json = json.loads(analysis_text)
             st.session_state.score = result_json.get("score", 0)
             st.session_state.feedback = result_json.get("feedback", "")
         except Exception as e:
-            st.error(f"Erreur lors de l'analyse : {str(e)}")
+            st.error(f"Erreur lors de l'analyse : {e}")
             st.session_state.score = 0
-            st.session_state.feedback = "Impossible d'obtenir un feedback."
+            st.session_state.feedback = "Impossible de générer un feedback."
     
-    # Afficher le score et le feedback
+    # Affichage du score et feedback
     st.subheader(f"Score : {st.session_state.score}/100")
-    st.write("**Feedback** :", st.session_state.feedback)
+    st.write(f"**Feedback :** {st.session_state.feedback}")
     
-    # Enregistrer dans Google Sheets
-    data_to_store = {
-        "basic_answers": st.session_state.basic_answers,
-        "chat_history": st.session_state.chat_history
-    }
+    # Enregistrement dans Google Sheets
     store_data_to_sheet(
         st.session_state.user_id,
-        data_to_store,
+        {
+            "static_answers": st.session_state.static_answers,
+            "chat_history": st.session_state.chat_history
+        },
         st.session_state.score,
         st.session_state.feedback
     )
@@ -256,52 +270,51 @@ def page_result():
 
 # ----- PAGE 5 : Matching -----
 def page_matching():
-    st.title("Profils compatibles")
-    st.write("Voici les profils dont le score est proche du tien (±10).")
+    st.title("Matching – Profils Compatibles")
     
     df = get_all_data_as_df()
     if df.empty:
-        st.info("Aucune donnée n'a encore été enregistrée.")
+        st.info("Aucune donnée enregistrée.")
         return
     
     try:
         df["score"] = pd.to_numeric(df["score"], errors="coerce")
-    except:
+    except Exception:
         st.error("Erreur de conversion des scores.")
         return
     
     user_score = st.session_state.score if st.session_state.score else 0
-    min_score = user_score - 10
-    max_score = user_score + 10
-    
-    # Exclure le profil courant
-    filtered_df = df[(df["score"] >= min_score) & (df["score"] <= max_score)]
-    filtered_df = filtered_df[filtered_df["user_id"] != st.session_state.user_id]
+    filtered_df = df[
+        (df["score"] >= user_score - 10) & 
+        (df["score"] <= user_score + 10) &
+        (df["user_id"] != st.session_state.user_id)
+    ]
     
     if filtered_df.empty:
         st.info("Aucun profil compatible trouvé.")
     else:
         for idx, row in filtered_df.iterrows():
             with st.container():
-                st.markdown(f"### Profil : {row['user_id']}")
-                st.write(f"**Score :** {row['score']}/100")
-                st.write("**Feedback résumé :**", row['feedback'])
+                st.subheader(f"Profil : {row['user_id']}")
+                st.write(f"Score : {row['score']}/100")
+                st.write("Feedback :", row['feedback'])
                 
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button(f"👍 J’aime - {row['user_id']}", key=f"like_{idx}"):
+                    if st.button(f"👍 Like - {row['user_id']}", key=f"like_{idx}"):
                         st.session_state.likes[row['user_id']] = "like"
-                        st.success(f"Tu as liké {row['user_id']}.")
+                        st.success(f"Vous avez liké {row['user_id']}.")
                 with col2:
-                    if st.button(f"👎 Je n’aime pas - {row['user_id']}", key=f"dislike_{idx}"):
+                    if st.button(f"👎 Dislike - {row['user_id']}", key=f"dislike_{idx}"):
                         st.session_state.likes[row['user_id']] = "dislike"
-                        st.warning(f"Tu n'as pas aimé {row['user_id']}.")
+                        st.warning(f"Vous n'avez pas aimé {row['user_id']}.")
                 st.markdown("---")
     
     if st.button("Refaire le questionnaire"):
+        # Reset session
         st.session_state.page = "login"
         st.session_state.user_id = None
-        st.session_state.basic_answers = {}
+        st.session_state.static_answers = {}
         st.session_state.chat_history = []
         st.session_state.question_count = 0
         st.session_state.score = None
