@@ -131,7 +131,7 @@ if "static_answers" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "question_count" not in st.session_state:
-    st.session_state.question_count = 0  # Limite pour le chatbot
+    st.session_state.question_count = 0  # Pour limiter le chatbot à 3 questions
 if "profile_summary" not in st.session_state:
     st.session_state.profile_summary = ""
 if "interaction_choice" not in st.session_state:
@@ -164,8 +164,12 @@ def page_personal():
             "age": age,
             "location": location
         })
-        # On intègre ces infos dans static_answers pour la suite
-        st.session_state.static_answers.update(st.session_state.personal_info)
+        # Intégrer ces infos dans static_answers
+        st.session_state.static_answers.update({
+            "gender": gender,
+            "age": age,
+            "location": location
+        })
         go_to_page("psych")
 
 # PAGE 3 : Questionnaire psychologique
@@ -178,10 +182,8 @@ def page_psych():
     wants_children = st.radio("Souhaitez-vous avoir des enfants ?", ["Oui", "Non"])
     lifestyle = st.selectbox("Comment décririez-vous votre rythme de vie ?",
                              ["Casanier", "Actif", "Fêtard", "Équilibré"])
-    couple_values = st.multiselect(
-        "Quelles sont vos valeurs en couple ?",
-        ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"]
-    )
+    couple_values = st.multiselect("Quelles sont vos valeurs en couple ?",
+                                   ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"])
     ideal_day = st.text_input("Décrivez brièvement votre journée idéale")
     
     if st.button("Suivant"):
@@ -205,7 +207,7 @@ def page_chatbot():
             "role": "system",
             "content": (
                 "Tu es un chatbot de matchmaking. Tu connais déjà les informations personnelles et psychologiques de l'utilisateur : "
-                f"{st.session_state.static_answers}. Pose jusqu'à 3 questions complémentaires sur sa personnalité et ses attentes, "
+                f"{st.session_state.static_answers}. Pose 3 questions complémentaires maximum sur sa personnalité et ses attentes, "
                 "sans insérer de terminaison automatique."
             )
         })
@@ -238,7 +240,7 @@ def page_chatbot():
                 "role": "user",
                 "content": user_msg.strip()
             })
-            # Incrémenter le compteur si la dernière question du chatbot contenait un "?"
+            # Incrémenter le compteur si la dernière question posée par le chatbot contenait un "?"
             if len(st.session_state.chat_history) >= 2:
                 last_assistant_msg = st.session_state.chat_history[-2]["content"]
                 if "?" in last_assistant_msg:
@@ -263,17 +265,16 @@ def page_chatbot():
 def page_result():
     st.title("Résumé de votre profil")
     st.write("Voici un résumé de votre profil, tel qu'un test psychologique vous décrirait.")
-
     static_str = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_str = "\n".join([
         f"{msg['role'].upper()} : {msg['content']}"
         for msg in st.session_state.chat_history if msg["role"] != "system"
     ])
     prompt_summary = (
-        "Voici les informations d'un utilisateur (ses réponses personnelles, psychologiques et un bref échange avec un chatbot). "
-        "Rédigez un résumé de son profil en le vouvoyant, décrivant sa personnalité, ses attentes et ses atouts en amour. "
+        "Voici les informations d'un utilisateur (ses réponses personnelles et psychologiques ainsi qu'un échange avec un chatbot). "
+        "Rédigez un résumé de son profil en le vouvoyant, en décrivant sa personnalité, ses attentes et ses atouts en amour. "
         "Adaptez le ton en fonction de son genre (par exemple, mentionnez 'vous êtes un homme' ou 'vous êtes une femme' si pertinent).\n\n"
-        f"--- Informations personnelles et psychologiques :\n{static_str}\n---\nConversation :\n{chat_str}\n"
+        f"--- Informations :\n{static_str}\n---\nConversation :\n{chat_str}\n"
     )
 
     with st.spinner("Génération du résumé..."):
@@ -293,6 +294,12 @@ def page_result():
             st.session_state.profile_summary = "Impossible de générer un résumé pour le moment."
     
     st.write(st.session_state.profile_summary)
+    
+    # L'utilisateur choisit son mode de communication (1 seul choix)
+    st.session_state.static_answers["interaction_choice"] = st.radio(
+        "Comment souhaitez-vous entrer en communication avec votre match ?",
+        ["discuter par chat", "par téléphone", "se rencontrer directement"]
+    )
     
     if st.button("Découvrez si nous avons quelqu’un de compatible avec vous"):
         go_to_page("matching")
@@ -347,7 +354,6 @@ def page_matching():
         return
 
     if best_score >= 60:
-        # On affiche le message final avec le mode de communication choisi par l'utilisateur
         user_mode = st.session_state.static_answers.get("interaction_choice", "non défini")
         st.success(f"Bravo ! Vous êtes compatible avec **{best_match}** à hauteur de **{best_score}%** pour {user_mode}.")
     else:
@@ -361,8 +367,8 @@ def main():
         page_login()
     elif st.session_state.page == "personal":
         page_personal()
-    elif st.session_state.page == "basics":
-        page_basics()
+    elif st.session_state.page == "psych":
+        page_psych()
     elif st.session_state.page == "chatbot":
         page_chatbot()
     elif st.session_state.page == "result":
