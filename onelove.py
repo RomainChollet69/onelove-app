@@ -175,18 +175,21 @@ def page_personal():
 # PAGE 3 : Questionnaire psychologique
 def page_psych():
     st.title("Questionnaire psychologique")
-    orientation = st.radio("Quelle est votre orientation sexuelle ?",
-                           ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"])
-    engagement = st.slider("À quel point cherchez-vous une relation sérieuse ? (1 à 10)", 1, 10, 5)
-    is_smoker = st.radio("Fumez-vous ?", ["Oui", "Non"])
-    wants_children = st.radio("Souhaitez-vous avoir des enfants ?", ["Oui", "Non"])
-    lifestyle = st.selectbox("Comment décririez-vous votre rythme de vie ?",
-                             ["Casanier", "Actif", "Fêtard", "Équilibré"])
-    couple_values = st.multiselect("Quelles sont vos valeurs en couple ?",
-                                   ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"])
-    ideal_day = st.text_input("Décrivez brièvement votre journée idéale")
+    with st.form(key="psych_form"):
+        orientation = st.radio("Quelle est votre orientation sexuelle ?",
+                               ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"])
+        engagement = st.slider("À quel point cherchez-vous une relation sérieuse ? (1 à 10)", 1, 10, 5)
+        is_smoker = st.radio("Fumez-vous ?", ["Oui", "Non"])
+        wants_children = st.radio("Souhaitez-vous avoir des enfants ?", ["Oui", "Non"])
+        lifestyle = st.selectbox("Comment décririez-vous votre rythme de vie ?",
+                                 ["Casanier", "Actif", "Fêtard", "Équilibré"])
+        couple_values = st.multiselect("Quelles sont vos valeurs en couple ?",
+                                       ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"])
+        ideal_day = st.text_input("Décrivez brièvement votre journée idéale")
+        
+        submitted = st.form_submit_button("Suivant")
     
-    if st.button("Suivant"):
+    if submitted:
         st.session_state.static_answers.update({
             "orientation": orientation,
             "engagement": engagement,
