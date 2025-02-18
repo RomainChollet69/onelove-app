@@ -25,7 +25,8 @@ service_account_info = json.loads(st.secrets["GCP_SERVICE_ACCOUNT"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, SCOPES)
 client = gspread.authorize(creds)
 
-# Assurez-vous que votre Google Sheet a pour en-têtes : user_id | timestamp | data | score | feedback
+# Assurez-vous que votre Google Sheet a pour en-têtes : 
+# user_id | timestamp | data | score | feedback
 SHEET_KEY = "1kJ9EfPW_LlChPp5eeuy4t-csLDrmjRyI-mIMUnmixfw"
 sheet = client.open_by_key(SHEET_KEY).sheet1
 
@@ -35,7 +36,7 @@ sheet = client.open_by_key(SHEET_KEY).sheet1
 
 def get_chatbot_response(conversation):
     """
-    Envoie l'historique de conversation à l'API OpenAI pour obtenir la réponse du chatbot.
+    Envoie l'historique de conversation à OpenAI pour obtenir la réponse du chatbot.
     """
     try:
         response = openai.ChatCompletion.create(
@@ -51,7 +52,7 @@ def get_chatbot_response(conversation):
 
 def store_data_to_sheet(user_id, data_dict, score, feedback):
     """
-    Enregistre dans Google Sheets les données du profil de l'utilisateur.
+    Enregistre dans Google Sheets le profil de l'utilisateur.
     Colonnes : user_id | timestamp | data (JSON) | score | feedback
     """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,71 +79,62 @@ def compute_compatibility(user_static, other_static):
       - Souhaite des enfants : 2.5
       - Critères rédhibitoires (fumeur) : 2.0
       - Critères rédhibitoires (enfants) : 2.0
-      - Rythme de vie : 2.0 (slider 1-10)
-      - Valeurs en couple : 3.0 (slider 1-10)
-      - Journée idéale : 2.5 (slider 1-10)
-      - Niveau d'engagement : 3.0 (slider 1-10)
+      - Rythme de vie : 2.0
+      - Valeurs en couple : 3.0
+      - Journée idéale : 2.5
+      - Niveau d'engagement : 3.0
     Score maximum théorique = 19.5 points.
-    Le pourcentage de compatibilité = (score / 19.5)*100
+    Pourcentage = (score / 19.5)*100
     """
     total = 0
     max_total = 19.5
-    # Orientation
     if user_static.get("orientation") == other_static.get("orientation"):
         total += 1.5
-    # Genre
     if user_static.get("gender") == other_static.get("gender"):
         total += 1.0
-    # Fumeur
     if user_static.get("fumeur") == other_static.get("fumeur"):
         total += 2.0
-    # Souhaite des enfants
     if user_static.get("souhaite_enfants") == other_static.get("souhaite_enfants"):
         total += 2.5
-    # Critère rédhibitoire pour fumer
+    # Critères rédhibitoires pour fumer
     cf1 = user_static.get("critere_fumeur", False)
     cf2 = other_static.get("critere_fumeur", False)
     cond1 = (not cf1) or (other_static.get("fumeur") == "Non")
     cond2 = (not cf2) or (user_static.get("fumeur") == "Non")
     if cond1 and cond2:
         total += 2.0
-    # Critère rédhibitoire pour les enfants
+    # Critères rédhibitoires pour enfants
     ce1 = user_static.get("critere_enfants", False)
     ce2 = other_static.get("critere_enfants", False)
     cond1 = (not ce1) or (other_static.get("souhaite_enfants") == "Oui")
     cond2 = (not ce2) or (user_static.get("souhaite_enfants") == "Oui")
     if cond1 and cond2:
         total += 2.0
-    # Rythme de vie
     try:
         r1 = float(user_static.get("rythme", 5))
         r2 = float(other_static.get("rythme", 5))
         total += 2.0 * (1 - abs(r1 - r2) / 9)
     except:
         pass
-    # Valeurs en couple
     try:
         v1 = float(user_static.get("valeurs", 5))
         v2 = float(other_static.get("valeurs", 5))
         total += 3.0 * (1 - abs(v1 - v2) / 9)
     except:
         pass
-    # Journée idéale
     try:
         j1 = float(user_static.get("journee", 5))
         j2 = float(other_static.get("journee", 5))
         total += 2.5 * (1 - abs(j1 - j2) / 9)
     except:
         pass
-    # Niveau d'engagement
     try:
         e1 = float(user_static.get("engagement", 5))
         e2 = float(other_static.get("engagement", 5))
         total += 3.0 * (1 - abs(e1 - e2) / 9)
     except:
         pass
-    compatibility = round((total / max_total) * 100)
-    return compatibility
+    return round((total / max_total) * 100)
 
 # =============================================================================
 # 4. INITIALISATION DE LA SESSION
@@ -184,7 +176,7 @@ def page_login():
             st.session_state.user_id = user_input.strip()
             go_to_page("static")
 
-# ----- PAGE 2 : Questionnaire statique -----
+# ----- PAGE 2 : Questionnaire Statique -----
 def page_static():
     st.title("Questionnaire de compatibilité")
     st.write("Veuillez répondre aux questions suivantes :")
@@ -218,17 +210,17 @@ def page_static():
         key="critere_enfants"
     )
     st.session_state.static_answers["rythme"] = st.slider(
-        "Comment qualifieriez-vous votre rythme de vie ? (1 = très calme, 10 = très actif)",
+        "Votre rythme de vie (1 = très calme, 10 = très actif)",
         1, 10, 5,
         key="rythme"
     )
     st.session_state.static_answers["valeurs"] = st.slider(
-        "Quelle importance accordez-vous aux valeurs en couple ? (1 à 10)",
+        "Importance des valeurs en couple (1 à 10)",
         1, 10, 5,
         key="valeurs"
     )
     st.session_state.static_answers["journee"] = st.slider(
-        "Comment décririez-vous votre journée idéale ? (1 = tranquille, 10 = intense)",
+        "Votre journée idéale (1 = tranquille, 10 = intense)",
         1, 10, 5,
         key="journee"
     )
@@ -263,35 +255,39 @@ def page_chatbot():
         else:
             st.markdown(f"**Vous :** {msg['content']}")
     
-    # Si le chatbot a terminé, passage à la page de résultats
+    # Si le chatbot a terminé, proposer d'accéder aux résultats
     if (st.session_state.chat_history[-1]["role"] == "assistant" and
         "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"].upper()):
         st.success("Le questionnaire est terminé !")
         if st.button("Voir les résultats"):
             go_to_page("result")
+            st.experimental_rerun()
         return
     
-    # Saisie de la réponse utilisateur
-    user_msg = st.text_input("Votre réponse :", key="chat_input")
+    # Utilisation d'un formulaire pour saisir la réponse
+    with st.form(key="chat_form"):
+        user_answer = st.text_input("Votre réponse:")
+        submitted = st.form_submit_button("Envoyer")
     
-    if st.button("Envoyer"):
-        if st.session_state["chat_input"].strip():
-            st.session_state.chat_history.append({
-                "role": "user",
-                "content": st.session_state["chat_input"].strip()
-            })
-            # Incrémenter le compteur si la dernière question de l'assistant contenait un "?"
-            last_assistant_msg = st.session_state.chat_history[-2]["content"] if len(st.session_state.chat_history) > 1 else ""
+    if submitted and user_answer.strip():
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": user_answer.strip()
+        })
+        # Vérifier si la dernière question de l'assistant contenait un "?"
+        if len(st.session_state.chat_history) >= 2:
+            last_assistant_msg = st.session_state.chat_history[-2]["content"]
             if "?" in last_assistant_msg:
                 st.session_state.question_count += 1
-            # Si 3 questions sont posées, forcer la fin
-            if st.session_state.question_count >= 3:
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": "FIN DE QUESTIONNAIRE"
-                })
-                return
-            # Obtenir la prochaine question via OpenAI
+        # Si après cette réponse le compteur atteint 3, on termine le questionnaire
+        if st.session_state.question_count == 3:
+            st.session_state.chat_history.append({
+                "role": "assistant",
+                "content": "FIN DE QUESTIONNAIRE"
+            })
+            st.experimental_rerun()
+            return
+        else:
             with st.spinner("Le chatbot réfléchit..."):
                 response = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo",
@@ -304,36 +300,35 @@ def page_chatbot():
                 "role": "assistant",
                 "content": assistant_text
             })
+            st.experimental_rerun()
             return
+
     if st.button("Terminer maintenant"):
         st.session_state.chat_history.append({
             "role": "assistant",
             "content": "FIN DE QUESTIONNAIRE"
         })
+        st.experimental_rerun()
         return
 
 # ----- PAGE 4 : Résultats et choix d'interaction -----
 def page_result():
     st.title("Résultats du questionnaire")
     st.write("Analyse de vos réponses pour générer votre profil.")
-    # L'utilisateur choisit comment il souhaite interagir
     st.session_state.static_answers["interaction_choice"] = st.radio(
         "Choisissez comment vous souhaitez interagir avec votre match :",
         ["discuter", "s'appeler", "se rencontrer"],
         key="interaction_choice"
     )
     
-    # Préparer un résumé des réponses
     static_info = "\n".join([f"{k}: {v}" for k, v in st.session_state.static_answers.items()])
     chat_info = "\n".join([f"{msg['role'].upper()} : {msg['content']}" 
                            for msg in st.session_state.chat_history if msg["role"] != "system"])
     full_text = f"Réponses statiques :\n{static_info}\n\nConversation :\n{chat_info}"
     
-    # Génération d'un feedback via OpenAI (à titre informatif)
     analysis_prompt = (
-        "Analyse ces informations pour dresser un profil rapide de l'utilisateur et fournir un court feedback sur sa personnalité. "
-        "Réponds sous forme JSON : {\"feedback\": \"...\"}.\n\n" +
-        full_text
+        "Analyse ces informations pour dresser un profil rapide et fournir un court feedback sur la personnalité de l'utilisateur. "
+        "Réponds sous forme JSON : {\"feedback\": \"...\"}.\n\n" + full_text
     )
     
     with st.spinner("Analyse en cours..."):
@@ -354,30 +349,37 @@ def page_result():
             st.error(f"Erreur lors de l'analyse : {e}")
             st.session_state.feedback = "Impossible de générer un feedback."
     
-    st.subheader(f"Feedback :")
+    st.subheader("Feedback :")
     st.write(st.session_state.feedback)
+    
+    # Enregistrement dans Google Sheets
+    store_data_to_sheet(
+        st.session_state.user_id,
+        {"static_answers": st.session_state.static_answers, "chat_history": st.session_state.chat_history},
+        st.session_state.score if st.session_state.score is not None else 0,
+        st.session_state.feedback
+    )
     
     if st.button("Voir mes matchs"):
         go_to_page("matching")
+        st.experimental_rerun()
 
-# ----- PAGE 5 : Matching (affichage du match sans profil complet) -----
+# ----- PAGE 5 : Matching -----
 def page_matching():
     st.title("Mes matchs")
-    st.write("Voici votre match (seulement un prénom et le pourcentage de compatibilité).")
+    st.write("Voici votre match (prénom et pourcentage de compatibilité).")
     
     df = get_all_data_as_df()
     if df.empty:
         st.info("Aucun profil enregistré pour le moment.")
         return
     
-    # Récupérer le profil statique de l'utilisateur courant
     try:
         current_data = json.loads(df[df["user_id"] == st.session_state.user_id]["data"].iloc[0])
         current_static = current_data.get("static_answers", {})
     except Exception:
         current_static = st.session_state.static_answers
     
-    # Calculer la compatibilité avec chaque autre profil
     matches = []
     for idx, row in df.iterrows():
         if row["user_id"] == st.session_state.user_id:
@@ -398,7 +400,6 @@ def page_matching():
         st.info("Aucun autre profil n'a encore répondu.")
         return
     
-    # Pour la phase test, afficher le profil avec la meilleure compatibilité
     match = max(matches, key=lambda x: x["compatibility"])
     
     st.write(f"**Match trouvé : {match['user_id']}**")
@@ -413,7 +414,7 @@ def page_matching():
         st.info("Votre mode d'interaction n'est pas encore apparié avec votre match. Réessayez plus tard.")
 
 # =============================================================================
-# 6. ROUTAGE PRINCIPAL
+# 6. ROUTAGE PRINCIPAL DE L'APPLICATION
 # =============================================================================
 if st.session_state.page == "login":
     page_login()
