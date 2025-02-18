@@ -175,18 +175,29 @@ def page_personal():
 # PAGE 3 : Questionnaire psychologique
 def page_psych():
     st.title("Questionnaire psychologique")
-    with st.form(key="psych_form"):
-        orientation = st.radio("Quelle est votre orientation sexuelle ?",
-                               ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"])
-        engagement = st.slider("À quel point cherchez-vous une relation sérieuse ? (1 à 10)", 1, 10, 5)
+    # Utilisez un formulaire pour regrouper toutes les questions.
+    with st.form(key="psych_form", clear_on_submit=False):
+        orientation = st.radio(
+            "Quelle est votre orientation sexuelle ?",
+            ["Hétérosexuel(le)", "Homosexuel(le)", "Bisexuel(le)", "Pansexuel(le)", "Autre"]
+        )
+        engagement = st.slider(
+            "À quel point cherchez-vous une relation sérieuse ? (1 à 10)",
+            1, 10, 5
+        )
         is_smoker = st.radio("Fumez-vous ?", ["Oui", "Non"])
         wants_children = st.radio("Souhaitez-vous avoir des enfants ?", ["Oui", "Non"])
-        lifestyle = st.selectbox("Comment décririez-vous votre rythme de vie ?",
-                                 ["Casanier", "Actif", "Fêtard", "Équilibré"])
-        couple_values = st.multiselect("Quelles sont vos valeurs en couple ?",
-                                       ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"])
+        lifestyle = st.selectbox(
+            "Comment décririez-vous votre rythme de vie ?",
+            ["Casanier", "Actif", "Fêtard", "Équilibré"]
+        )
+        couple_values = st.multiselect(
+            "Quelles sont vos valeurs en couple ?",
+            ["Confiance", "Loyauté", "Indépendance", "Communication", "Humour", "Respect", "Spiritualité", "Liberté"]
+        )
         ideal_day = st.text_input("Décrivez brièvement votre journée idéale")
         
+        # Le formulaire ne se soumettra que lorsque l'utilisateur cliquera sur "Suivant"
         submitted = st.form_submit_button("Suivant")
     
     if submitted:
@@ -200,6 +211,7 @@ def page_psych():
             "ideal_day": ideal_day
         })
         go_to_page("chatbot")
+
 
 # PAGE 4 : Chatbot interactif (3 questions maximum)
 def page_chatbot():
