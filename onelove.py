@@ -347,12 +347,6 @@ def partner_allowed(user_static, other_static):
 def page_matching():
     st.title("Recherche de match")
     st.write("Nous vérifions si nous avons un profil compatible à au moins 60% avec vous.")
-
-    # Demander le mode de communication sur cette page
-    st.session_state.static_answers["interaction_choice"] = st.radio(
-        "Comment souhaitez-vous entrer en communication avec votre match ?",
-        ["discuter par chat", "par téléphone", "se rencontrer directement"]
-    )
     
     # Enregistrement final du profil dans Google Sheets (score et feedback non utilisés ici)
     store_data_to_sheet(
@@ -368,8 +362,7 @@ def page_matching():
     if df.empty:
         st.info("Aucun profil n’est encore enregistré.")
         return
-
-    # Récupérer le profil de l'utilisateur courant
+    
     try:
         current_data_row = df[df["user_id"] == st.session_state.user_id]
         if current_data_row.empty:
@@ -379,7 +372,7 @@ def page_matching():
         current_static = current_data.get("static_answers", {})
     except Exception:
         current_static = st.session_state.static_answers
-
+    
     best_match = None
     best_score = 0
     # Parcourir tous les autres profils
@@ -398,13 +391,18 @@ def page_matching():
         if comp > best_score:
             best_score = comp
             best_match = row["user_id"]
-
+    
     if not best_match:
         st.info("Aucun autre profil n’a été trouvé qui corresponde à vos critères.")
         return
 
     if best_score >= 60:
-        user_mode = st.session_state.static_answers.get("interaction_choice", "non défini")
+        # Affichage du mode de communication uniquement si un match compatible est trouvé.
+        user_mode = st.radio(
+            "Comment souhaitez-vous entrer en communication avec votre match ?",
+            ["discuter par chat", "par téléphone", "se rencontrer directement"]
+        )
+        st.session_state.static_answers["interaction_choice"] = user_mode
         st.success(f"Bravo ! Vous êtes compatible avec **{best_match}** à hauteur de **{best_score}%** pour {user_mode}.")
     else:
         st.info(f"Aucun profil n’a une compatibilité >= 60%. Le meilleur match est {best_match} à {best_score}%.")
