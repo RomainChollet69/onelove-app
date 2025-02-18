@@ -56,7 +56,6 @@ def store_conversation_to_sheet(user_id, conversation, score, feedback):
     Les colonnes enregistrées sont : user_id, timestamp, conversation (en JSON), score, feedback.
     """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # On stocke la conversation sous forme de chaîne JSON
     conversation_str = json.dumps(conversation, ensure_ascii=False)
     data_row = [user_id, timestamp, conversation_str, score, feedback]
     sheet.append_row(data_row)
@@ -83,20 +82,19 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{
         "role": "system",
         "content": (
-            "Vous êtes un expert en matchmaking. Posez une série d'au moins 30 questions pour "
-            "établir le profil de l'utilisateur. Adaptez vos questions en fonction de ses réponses "
-            "et approfondissez certains aspects si besoin. À la fin, résumez le profil et attribuez-lui "
-            "un score de compatibilité sur 100. Lorsque le questionnaire est terminé, affichez 'FIN DE QUESTIONNAIRE'."
+            "Tu es un chatbot expert en matchmaking. Tu dois poser au moins 30 questions à l'utilisateur, "
+            "en t'adaptant à ses réponses, et approfondir certains aspects si besoin. "
+            "Quand tu as posé la 30ème question, conclus en écrivant : 'FIN DE QUESTIONNAIRE'."
         )
     }]
 if "question_count" not in st.session_state:
-    st.session_state.question_count = 0  # Compteur du nombre de questions posées (par le chatbot)
+    st.session_state.question_count = 0  # Compteur de questions posées
 if "score" not in st.session_state:
     st.session_state.score = None
 if "feedback" not in st.session_state:
     st.session_state.feedback = ""
 if "likes" not in st.session_state:
-    st.session_state.likes = {}  # Pour stocker les like/dislike sur les profils
+    st.session_state.likes = {}
 
 def go_to_page(page_name):
     st.session_state.page = page_name
@@ -119,17 +117,29 @@ def page_login():
 def page_chatbot():
     st.title("Chatbot interactif – Questionnaire de matchmaking")
     
+    # Si on n'a qu'un seul message (le message système), on ajoute un message assistant initial
+    if len(st.session_state.chat_history) == 1:
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": (
+                "Bonjour ! Je suis ravi de te rencontrer. Je vais te poser une série d'au moins 30 questions "
+                "pour mieux cerner ton profil et tes attentes. N'hésite pas à détailler tes réponses. "
+                "Pour commencer, peux-tu me dire rapidement qui tu es et ce que tu recherches ?"
+            )
+        })
+    
     st.write("La conversation se déroule ci-dessous. Répondez aux questions et le chatbot s'adaptera à vos réponses.")
     
-    # Affichage de l'historique de la conversation
-    for msg in st.session_state.chat_history[1:]:  # On n'affiche pas le message système
+    # Affichage de l'historique de la conversation (on ignore le message système)
+    for msg in st.session_state.chat_history[1:]:
         if msg["role"] == "assistant":
             st.markdown(f"**Chatbot :** {msg['content']}")
         elif msg["role"] == "user":
             st.markdown(f"**Vous :** {msg['content']}")
     
     # Vérifier si le questionnaire est terminé (si le dernier message contient "FIN DE QUESTIONNAIRE")
-    if st.session_state.chat_history[-1]["role"] == "assistant" and "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"]:
+    if (st.session_state.chat_history[-1]["role"] == "assistant" and 
+        "FIN DE QUESTIONNAIRE" in st.session_state.chat_history[-1]["content"].upper()):
         st.success("Le questionnaire est terminé !")
         if st.button("Voir les résultats"):
             go_to_page("result")
@@ -140,7 +150,7 @@ def page_chatbot():
         user_message = st.text_input("Votre réponse :", "")
         submit = st.form_submit_button("Envoyer")
     
-    if submit and user_message.strip() != "":
+    if submit and user_message.strip():
         # Ajout de la réponse de l'utilisateur à l'historique
         st.session_state.chat_history.append({
             "role": "user",
@@ -153,10 +163,13 @@ def page_chatbot():
             "role": "assistant",
             "content": assistant_response
         })
-        # Incrémentation du compteur si le chatbot pose une question (vérification sommaire)
+        
+        # Compter la question si on détecte un point d'interrogation
         if "?" in assistant_response:
             st.session_state.question_count += 1
-        st.experimental_rerun()  # Rafraîchissement de la page pour afficher le nouvel échange
+        
+        # On arrête l'exécution ici pour forcer Streamlit à recharger la page
+        st.stop()
 
 def page_result():
     st.title("Analyse du questionnaire – Résultats et feedback")
@@ -187,6 +200,7 @@ def page_result():
             )
             analysis_text = response.choices[0].message["content"].strip()
             st.code(analysis_text, language="json")
+            
             # Tentative de parsing du JSON retourné
             result_json = json.loads(analysis_text)
             st.session_state.score = result_json.get("score", None)
@@ -233,6 +247,7 @@ def page_matching():
     min_score = user_score - 10
     max_score = user_score + 10
     filtered_df = df[(df["score"] >= min_score) & (df["score"] <= max_score)]
+    
     # Exclure le profil de l'utilisateur courant
     filtered_df = filtered_df[filtered_df["user_id"] != st.session_state.user_id]
     
@@ -246,7 +261,7 @@ def page_matching():
                 st.write(f"**Score :** {row['score']}/100")
                 st.write("**Feedback résumé :**")
                 st.write(row['feedback'])
-                # Boutons de like / dislike
+                
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button(f"👍 J’aime - {row['user_id']}", key=f"like_{idx}"):
@@ -265,10 +280,9 @@ def page_matching():
         st.session_state.chat_history = [{
             "role": "system",
             "content": (
-                "Vous êtes un expert en matchmaking. Posez une série d'au moins 30 questions pour "
-                "établir le profil de l'utilisateur. Adaptez vos questions en fonction de ses réponses "
-                "et approfondissez certains aspects si besoin. À la fin, résumez le profil et attribuez-lui "
-                "un score de compatibilité sur 100. Lorsque le questionnaire est terminé, affichez 'FIN DE QUESTIONNAIRE'."
+                "Tu es un chatbot expert en matchmaking. Tu dois poser au moins 30 questions à l'utilisateur, "
+                "en t'adaptant à ses réponses, et approfondir certains aspects si besoin. "
+                "Quand tu as posé la 30ème question, conclus en écrivant : 'FIN DE QUESTIONNAIRE'."
             )
         }]
         st.session_state.question_count = 0
